@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}账户设置 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- 侧边栏导航 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-column align-items-center text-center mb-4">
+                        <div class="user-avatar mb-3">
+                            <i class="fas fa-user-circle fa-5x text-primary"></i>
+                        </div>
+                        <h5 class="mb-1">{{ g.user.username }}</h5>
+                        <p class="text-muted">{{ g.user.name }}</p>
+                    </div>
+                    <div class="list-group">
+                        <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-id-card me-2"></i> 个人信息
+                        </a>
+                        <a href="{{ url_for('auth.settings') }}" class="list-group-item list-group-item-action active">
+                            <i class="fas fa-cog me-2"></i> 账户设置
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-bell me-2"></i> 消息通知
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-history me-2"></i> 操作记录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <!-- 设置表单卡片 -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <ul class="nav nav-tabs card-header-tabs" id="settingsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="true">
+                                <i class="fas fa-user me-1"></i> 个人资料
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password" type="button" role="tab" aria-controls="password" aria-selected="false">
+                                <i class="fas fa-key me-1"></i> 修改密码
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notification-tab" data-bs-toggle="tab" data-bs-target="#notification" type="button" role="tab" aria-controls="notification" aria-selected="false">
+                                <i class="fas fa-bell me-1"></i> 通知设置
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="settingsTabsContent">
+                        <!-- 个人资料表单 -->
+                        <div class="tab-pane fade show active" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                            <form method="POST" action="{{ url_for('auth.settings') }}">
+                                {{ form.hidden_tag() }}
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.name.id }}" class="form-label">{{ form.name.label }}</label>
+                                            {{ form.name(class="form-control") }}
+                                            {% for error in form.name.errors %}
+                                            <div class="text-danger">{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.email.id }}" class="form-label">{{ form.email.label }}</label>
+                                            {{ form.email(class="form-control") }}
+                                            {% for error in form.email.errors %}
+                                            <div class="text-danger">{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.department.id }}" class="form-label">{{ form.department.label }}</label>
+                                    {{ form.department(class="form-control") }}
+                                    {% for error in form.department.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">用户名</label>
+                                    <input type="text" class="form-control" value="{{ g.user.username }}" disabled readonly>
+                                    <div class="form-text">用户名不能修改</div>
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i> 保存修改
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- 修改密码表单 -->
+                        <div class="tab-pane fade" id="password" role="tabpanel" aria-labelledby="password-tab">
+                            <form method="POST" action="{{ url_for('auth.settings') }}">
+                                {{ form.hidden_tag() }}
+                                <!-- 保持其他字段的值不变 -->
+                                {{ form.name(value=form.name.data, type="hidden") }}
+                                {{ form.email(value=form.email.data, type="hidden") }}
+                                {{ form.department(value=form.department.data, type="hidden") }}
+
+                                <div class="mb-3">
+                                    <label for="{{ form.current_password.id }}" class="form-label">{{ form.current_password.label }}</label>
+                                    {{ form.current_password(class="form-control") }}
+                                    {% for error in form.current_password.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.new_password.id }}" class="form-label">{{ form.new_password.label }}</label>
+                                    {{ form.new_password(class="form-control") }}
+                                    {% for error in form.new_password.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.confirm_password.id }}" class="form-label">{{ form.confirm_password.label }}</label>
+                                    {{ form.confirm_password(class="form-control") }}
+                                    {% for error in form.confirm_password.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-key me-1"></i> 更新密码
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- 通知设置选项 -->
+                        <div class="tab-pane fade" id="notification" role="tabpanel" aria-labelledby="notification-tab">
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-2"></i> 通知设置功能正在开发中，敬请期待。
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">电子邮件通知</h6>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="emailAlert" checked disabled>
+                                        <label class="form-check-label" for="emailAlert">告警通知</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="emailSystem" checked disabled>
+                                        <label class="form-check-label" for="emailSystem">系统通知</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="emailReport" disabled>
+                                        <label class="form-check-label" for="emailReport">周报和月报</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">短信通知</h6>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="smsAlert" disabled>
+                                        <label class="form-check-label" for="smsAlert">紧急告警通知</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="smsSystem" disabled>
+                                        <label class="form-check-label" for="smsSystem">系统维护通知</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,565 @@
+{% extends 'base.html' %}
+
+{% block title %}终端设备管理 - {{ super() }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .device-type-badge {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+    }
+
+    .device-type-pc {
+        background-color: #17a2b8;
+    }
+
+    .device-type-mobile {
+        background-color: #6f42c1;
+    }
+
+    .device-type-server {
+        background-color: #dc3545;
+    }
+
+    .device-type-other {
+        background-color: #6c757d;
+    }
+
+    .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+
+    .status-online {
+        background-color: #28a745;
+    }
+
+    .status-offline {
+        background-color: #dc3545;
+    }
+
+    .filter-card {
+        background-color: #f8f9fa;
+        border-left: 4px solid #007bff;
+    }
+
+    .stats-card {
+        transition: transform 0.3s;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-laptop"></i> 终端设备管理</h1>
+        <div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#identifyDeviceModal">
+                <i class="fas fa-search"></i> 识别设备
+                </button>
+            <form method="post" action="{{ url_for('terminal.discover_all') }}" class="d-inline">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-sync-alt"></i> 发现终端设备
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h5 class="card-title">总设备数</h5>
+                <p class="card-text display-4">{{ stats.total }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+                <div class="card-body">
+                <h5 class="card-title">在线设备</h5>
+                <p class="card-text display-4">{{ stats.online }}</p>
+                        </div>
+                    </div>
+                </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <h5 class="card-title">离线设备</h5>
+                <p class="card-text display-4">{{ stats.offline }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+                <div class="card-body">
+                <h5 class="card-title">设备类型</h5>
+                <p class="card-text display-4">{{ stats.device_types|length }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- 搜索和过滤 -->
+<div class="card mb-4">
+                <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" class="form-control" name="search" placeholder="搜索主机名/IP/MAC" value="{{ search }}">
+                        </div>
+            <div class="col-md-2">
+                <select class="form-select" name="status" aria-label="设备状态过滤">
+                    <option value="">所有状态</option>
+                    <option value="online" {% if status == 'online' %}selected{% endif %}>在线</option>
+                    <option value="offline" {% if status == 'offline' %}selected{% endif %}>离线</option>
+                </select>
+                        </div>
+            <div class="col-md-2">
+                <select class="form-select" name="device_type" aria-label="设备类型过滤">
+                    <option value="">所有类型</option>
+                    {% for type, count in stats.device_types %}
+                    <option value="{{ type }}" {% if device_type == type %}selected{% endif %}>{{ type if type else '未知' }} ({{ count }})</option>
+                    {% endfor %}
+                </select>
+                    </div>
+            <div class="col-md-2">
+                <select class="form-select" name="location" aria-label="位置过滤">
+                    <option value="">所有位置</option>
+                    {% for loc, count in stats.locations %}
+                    <option value="{{ loc }}" {% if location == loc %}selected{% endif %}>{{ loc if loc else '未知' }} ({{ count }})</option>
+                    {% endfor %}
+                </select>
+                </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">搜索</button>
+                <a href="{{ url_for('terminal.index') }}" class="btn btn-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 终端设备列表 -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>主机名</th>
+                        <th>IP地址</th>
+                        <th>MAC地址</th>
+                        <th>设备类型</th>
+                        <th>操作系统</th>
+                        <th>厂商</th>
+                        <th>连接设备</th>
+                        <th>位置</th>
+                        <th>状态</th>
+                        <th>最后在线</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for terminal in terminals %}
+                    <tr>
+                        <td>{{ terminal.hostname }}</td>
+                        <td>{{ terminal.ip_address }}</td>
+                        <td>{{ terminal.mac_address }}</td>
+                        <td>{{ terminal.device_type }}</td>
+                        <td>{{ terminal.os_type }}</td>
+                        <td>{{ terminal.vendor }}</td>
+                        <td>
+                            {% if terminal.connected_device %}
+                            <a href="{{ url_for('device.view', id=terminal.connected_device.id) }}">
+                                {{ terminal.connected_device.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">未连接</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ terminal.location }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if terminal.is_active else 'danger' }}">
+                                {{ 'online' if terminal.is_active else 'offline' }}
+                            </span>
+                        </td>
+                        <td>{{ terminal.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            <a href="{{ url_for('terminal.view', id=terminal.id) }}" class="btn btn-sm btn-info" title="查看详情">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button class="btn btn-sm btn-warning edit-terminal" data-id="{{ terminal.id }}" title="编辑设备">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-terminal" data-id="{{ terminal.id }}" title="删除设备">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% for page in pagination.iter_pages() %}
+                    {% if page %}
+                        <li class="page-item {{ 'active' if page == pagination.page else '' }}">
+                            <a class="page-link" href="{{ url_for('terminal.index', page=page, search=search, status=status, device_type=device_type, location=location) }}">
+                                {{ page }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+        {% endif %}
+                        </div>
+                    </div>
+
+<!-- 编辑终端设备模态框 -->
+<div class="modal fade" id="editTerminalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑终端设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTerminalForm">
+                    <input type="hidden" id="terminalId" aria-label="终端ID">
+                    <div class="mb-3">
+                        <label for="hostname" class="form-label">主机名</label>
+                        <input type="text" class="form-control" id="hostname" required>
+        </div>
+                    <div class="mb-3">
+                        <label for="deviceType" class="form-label">设备类型</label>
+                        <select class="form-select" id="deviceType">
+                            <option value="PC">个人电脑</option>
+                            <option value="Mobile">手机</option>
+                            <option value="Tablet">平板</option>
+                            <option value="Network">网络设备</option>
+                            <option value="Apple">苹果设备</option>
+                            <option value="Server">服务器</option>
+                            <option value="IoT">物联网设备</option>
+                            <option value="Unknown">未知设备</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="osType" class="form-label">操作系统</label>
+                        <input type="text" class="form-control" id="osType">
+                    </div>
+                    <div class="mb-3">
+                        <label for="vendor" class="form-label">厂商</label>
+                        <input type="text" class="form-control" id="vendor">
+                    </div>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">位置</label>
+                        <input type="text" class="form-control" id="location">
+                    </div>
+                    <div class="mb-3">
+                        <label for="connectedDevice" class="form-label">连接设备</label>
+                        <select class="form-select" id="connectedDevice">
+                            <option value="">-- 未连接 --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="portNumber" class="form-label">端口号</label>
+                        <input type="text" class="form-control" id="portNumber">
+                    </div>
+                    <div class="mb-3">
+                        <label for="vlanId" class="form-label">VLAN ID</label>
+                        <input type="text" class="form-control" id="vlanId">
+                    </div>
+                    <div class="mb-3">
+                        <label for="connectionType" class="form-label">连接类型</label>
+                        <select class="form-select" id="connectionType">
+                            <option value="wired">有线</option>
+                            <option value="wireless">无线</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveTerminal">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 识别设备模态框 -->
+<div class="modal fade" id="identifyDeviceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">识别设备信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="identifyDeviceForm">
+                    <div class="mb-3">
+                        <label for="userAgent" class="form-label">用户代理字符串 (User-Agent)</label>
+                        <textarea class="form-control" id="userAgent" rows="3" placeholder="粘贴浏览器的User-Agent字符串"></textarea>
+                </div>
+                    <div class="mb-3">
+                        <label for="macAddress" class="form-label">MAC地址</label>
+                        <input type="text" class="form-control" id="macAddress" placeholder="例如: 00:1A:2B:3C:4D:5E">
+                    </div>
+                </form>
+                
+                <div class="mt-4" id="identificationResults" style="display: none;">
+                    <h6>识别结果：</h6>
+                    <div class="card">
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>设备类型:</th>
+                                    <td id="result-device-type"></td>
+                                </tr>
+                                <tr>
+                                    <th>操作系统:</th>
+                                    <td id="result-os-type"></td>
+                                </tr>
+                                <tr>
+                                    <th>厂商:</th>
+                                    <td id="result-vendor"></td>
+                                </tr>
+                                <tr>
+                                    <th>浏览器:</th>
+                                    <td id="result-browser"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="identifyDeviceBtn">识别</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteTerminalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+        </div>
+            <div class="modal-body">
+                确定要删除该终端设备吗？此操作无法撤销。
+                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteTerminal">删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取设备列表
+        const fetchDevices = async () => {
+            try {
+                const response = await fetch('/terminal/api/devices');
+                const data = await response.json();
+                const deviceSelect = document.getElementById('connectedDevice');
+                
+                // 清空原有选项
+                while (deviceSelect.options.length > 1) {
+                    deviceSelect.remove(1);
+                }
+                
+                // 添加设备选项
+                data.items.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.id;
+                    option.textContent = device.name;
+                    deviceSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('获取设备列表失败:', error);
+            }
+        };
+        
+        // 编辑终端设备
+        document.querySelectorAll('.edit-terminal').forEach(button => {
+            button.addEventListener('click', async function() {
+                const terminalId = this.getAttribute('data-id');
+                const modal = new bootstrap.Modal(document.getElementById('editTerminalModal'));
+                
+                try {
+                    // 获取终端设备信息
+                    const response = await fetch(`/terminal/api/${terminalId}`);
+                    const terminal = await response.json();
+                    
+                    // 填充表单
+                    document.getElementById('terminalId').value = terminal.id;
+                    document.getElementById('hostname').value = terminal.hostname || '';
+                    document.getElementById('deviceType').value = terminal.device_type || '';
+                    document.getElementById('osType').value = terminal.os_type || '';
+                    document.getElementById('vendor').value = terminal.vendor || '';
+                    document.getElementById('location').value = terminal.location || '';
+                    document.getElementById('portNumber').value = terminal.port_number || '';
+                    document.getElementById('vlanId').value = terminal.vlan_id || '';
+                    document.getElementById('connectionType').value = terminal.connection_type || 'wired';
+                    
+                    // 获取设备列表
+                    await fetchDevices();
+                    
+                    // 选择连接的设备
+                    document.getElementById('connectedDevice').value = terminal.connected_device_id || '';
+                    
+                    // 显示模态框
+                    modal.show();
+                } catch (error) {
+                    console.error('获取终端设备信息失败:', error);
+                    alert('获取终端设备信息失败，请重试。');
+                }
+            });
+        });
+        
+        // 保存终端设备
+        document.getElementById('saveTerminal').addEventListener('click', async function() {
+            const terminalId = document.getElementById('terminalId').value;
+            const data = {
+                hostname: document.getElementById('hostname').value,
+                device_type: document.getElementById('deviceType').value,
+                os_type: document.getElementById('osType').value,
+                vendor: document.getElementById('vendor').value,
+                location: document.getElementById('location').value,
+                connected_device_id: document.getElementById('connectedDevice').value || null,
+                port_number: document.getElementById('portNumber').value,
+                vlan_id: document.getElementById('vlanId').value,
+                connection_type: document.getElementById('connectionType').value
+            };
+            
+            try {
+                const response = await fetch(`/terminal/api/${terminalId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    bootstrap.Modal.getInstance(document.getElementById('editTerminalModal')).hide();
+                    window.location.reload(); // 刷新页面
+                } else {
+                    const error = await response.json();
+                    alert(`保存失败: ${error.message || '未知错误'}`);
+                }
+            } catch (error) {
+                console.error('保存终端设备信息失败:', error);
+                alert('保存终端设备信息失败，请重试。');
+            }
+        });
+        
+        // 删除终端设备
+        let terminalIdToDelete;
+        
+        document.querySelectorAll('.delete-terminal').forEach(button => {
+            button.addEventListener('click', function() {
+                terminalIdToDelete = this.getAttribute('data-id');
+                const modal = new bootstrap.Modal(document.getElementById('deleteTerminalModal'));
+                modal.show();
+            });
+        });
+        
+        document.getElementById('confirmDeleteTerminal').addEventListener('click', async function() {
+            if (!terminalIdToDelete) return;
+            
+            try {
+                const response = await fetch(`/terminal/api/${terminalIdToDelete}`, {
+                    method: 'DELETE',
+                });
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('deleteTerminalModal')).hide();
+                    window.location.reload(); // 刷新页面
+                } else {
+                    const error = await response.json();
+                    alert(`删除失败: ${error.message || '未知错误'}`);
+                }
+            } catch (error) {
+                console.error('删除终端设备失败:', error);
+                alert('删除终端设备失败，请重试。');
+            }
+        });
+        
+        // 识别设备
+        document.getElementById('identifyDeviceBtn').addEventListener('click', async function() {
+            const userAgent = document.getElementById('userAgent').value.trim();
+            const macAddress = document.getElementById('macAddress').value.trim();
+            
+            if (!userAgent && !macAddress) {
+                alert('请至少提供用户代理字符串或MAC地址');
+                return;
+            }
+            
+            const formData = new FormData();
+            if (userAgent) formData.append('user_agent', userAgent);
+            if (macAddress) formData.append('mac_address', macAddress);
+            
+            try {
+                const response = await fetch('/terminal/identify_device', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // 显示结果
+                    document.getElementById('result-device-type').textContent = result.device_type || 'Unknown';
+                    document.getElementById('result-os-type').textContent = result.os_type || 'Unknown';
+                    document.getElementById('result-vendor').textContent = result.vendor || 'Unknown';
+                    document.getElementById('result-browser').textContent = result.browser || 'Unknown';
+                    
+                    document.getElementById('identificationResults').style.display = 'block';
+                } else {
+                    const error = await response.json();
+                    alert(`识别失败: ${error.error || '未知错误'}`);
+                }
+            } catch (error) {
+                console.error('设备识别失败:', error);
+                alert('设备识别失败，请重试。');
+            }
+    });
+});
+</script>
+{% endblock %} 

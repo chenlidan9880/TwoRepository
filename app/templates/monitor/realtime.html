@@ -1,0 +1,668 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .realtime-chart {
+        height: 400px;
+        margin-bottom: 20px;
+    }
+    
+    .info-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #4e73df;
+    }
+    
+    .traffic-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #1cc88a;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .traffic-stat {
+        text-align: center;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        background-color: #fff;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .traffic-stat h3 {
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
+    
+    .traffic-stat p {
+        margin-bottom: 0;
+        color: #6c757d;
+    }
+    
+    .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .status-up {
+        background-color: #1cc88a;
+    }
+    
+    .status-down {
+        background-color: #e74a3b;
+    }
+    
+    .refresh-btn {
+        transition: transform 0.3s;
+    }
+    
+    .refresh-btn:hover {
+        transform: rotate(180deg);
+    }
+    
+    .stats-container {
+        margin-bottom: 20px;
+    }
+    
+    .interface-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #f6c23e;
+    }
+    
+    .interface-row {
+        padding: 10px;
+        border-bottom: 1px solid #e3e6f0;
+        transition: background-color 0.3s;
+    }
+    
+    .interface-row:hover {
+        background-color: #f8f9fc;
+    }
+    
+    .interface-row:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1><i class="fas fa-chart-area"></i> {{ device.name }} 实时流量监控</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group mr-2">
+                <button id="refresh-btn" class="btn btn-sm btn-outline-secondary refresh-btn">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+                <a href="{{ url_for('monitor.history', device_id=device.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-history"></i> 历史数据
+                </a>
+                <a href="{{ url_for('monitor.index') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-chart-line"></i> 流量监控
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <!-- 设备信息卡片 -->
+            <div class="card shadow info-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-server"></i> 设备信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备名称</div>
+                        <div class="col-md-8">{{ device.name }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">IP地址</div>
+                        <div class="col-md-8">{{ device.ip_address }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备类型</div>
+                        <div class="col-md-8">{{ device.device_type }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">位置</div>
+                        <div class="col-md-8">{{ device.location }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">状态</div>
+                        <div class="col-md-8">
+                            {% if device.status == 'up' %}
+                            <span><span class="status-dot status-up"></span>在线</span>
+                            {% else %}
+                            <span><span class="status-dot status-down"></span>离线</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">最后更新</div>
+                        <div class="col-md-8" id="last-update">{{ device.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当前流量统计 -->
+            <div class="card shadow traffic-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-chart-bar"></i> 当前流量统计</h6>
+                </div>
+                <div class="card-body">
+                    <div class="stats-container">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="in-traffic">0 Mbps</h3>
+                                    <p>入站流量</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="out-traffic">0 Mbps</h3>
+                                    <p>出站流量</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="packets-in">0 pps</h3>
+                                    <p>入站包速率</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="packets-out">0 pps</h3>
+                                    <p>出站包速率</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">带宽利用率</div>
+                        <div class="progress mb-4">
+                            <div class="progress-bar bg-success" id="utilization-bar" role="progressbar"
+                                 style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <!-- 实时流量图表 -->
+            <div class="card shadow traffic-card">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-chart-line"></i> 实时流量</h6>
+                    <div class="dropdown no-arrow">
+                        <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" 
+                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" 
+                             aria-labelledby="dropdownMenuLink">
+                            <div class="dropdown-header">查看选项：</div>
+                            <a class="dropdown-item" href="#" data-view="traffic">流量（Mbps）</a>
+                            <a class="dropdown-item" href="#" data-view="packets">数据包（pps）</a>
+                            <a class="dropdown-item" href="#" data-view="errors">错误包</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#" data-view="combined">组合视图</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="realtime-traffic-chart" class="realtime-chart"></div>
+                </div>
+            </div>
+            
+            <!-- 接口详情 -->
+            <div class="card shadow interface-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-network-wired"></i> 接口详情</h6>
+                </div>
+                <div class="card-body">
+                    <div id="interfaces-container">
+                        <div class="interface-row">
+                            <div class="row">
+                                <div class="col-md-3 font-weight-bold">GigabitEthernet0/1</div>
+                                <div class="col-md-2"><span class="status-dot status-up"></span>Up</div>
+                                <div class="col-md-2">1 Gbps</div>
+                                <div class="col-md-2">120.5 Mbps</div>
+                                <div class="col-md-3">
+                                    <div class="progress">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: 12%" 
+                                            aria-valuenow="12" aria-valuemin="0" aria-valuemax="100">12%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="interface-row">
+                            <div class="row">
+                                <div class="col-md-3 font-weight-bold">GigabitEthernet0/2</div>
+                                <div class="col-md-2"><span class="status-dot status-up"></span>Up</div>
+                                <div class="col-md-2">1 Gbps</div>
+                                <div class="col-md-2">224.8 Mbps</div>
+                                <div class="col-md-3">
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 22%" 
+                                            aria-valuenow="22" aria-valuemin="0" aria-valuemax="100">22%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="interface-row">
+                            <div class="row">
+                                <div class="col-md-3 font-weight-bold">GigabitEthernet0/3</div>
+                                <div class="col-md-2"><span class="status-dot status-up"></span>Up</div>
+                                <div class="col-md-2">1 Gbps</div>
+                                <div class="col-md-2">354.2 Mbps</div>
+                                <div class="col-md-3">
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 35%" 
+                                            aria-valuenow="35" aria-valuemin="0" aria-valuemax="100">35%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="interface-row">
+                            <div class="row">
+                                <div class="col-md-3 font-weight-bold">GigabitEthernet0/4</div>
+                                <div class="col-md-2"><span class="status-dot status-down"></span>Down</div>
+                                <div class="col-md-2">--</div>
+                                <div class="col-md-2">--</div>
+                                <div class="col-md-3">
+                                    <div class="progress">
+                                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%" 
+                                            aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化实时流量图表
+    const realtimeChart = echarts.init(document.getElementById('realtime-traffic-chart'));
+    
+    // 图表数据
+    const now = new Date();
+    const timeData = [];
+    const inData = [];
+    const outData = [];
+    const inPacketsData = [];
+    const outPacketsData = [];
+    
+    // 初始化时间数据
+    for (let i = 60; i >= 0; i--) {
+        timeData.push(new Date(now.getTime() - i * 1000));
+        inData.push(0);
+        outData.push(0);
+        inPacketsData.push(0);
+        outPacketsData.push(0);
+    }
+    
+    // 图表选项
+    const option = {
+        title: {
+            text: '实时流量监控',
+            left: 'center'
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross',
+                label: {
+                    backgroundColor: '#6a7985'
+                }
+            },
+            formatter: function(params) {
+                const time = new Date(params[0].value[0]).toLocaleTimeString();
+                let result = `${time}<br>`;
+                
+                params.forEach(item => {
+                    const color = item.color;
+                    const name = item.seriesName;
+                    let value = item.value[1];
+                    
+                    if (name.includes('流量')) {
+                        value = value.toFixed(2) + ' Mbps';
+                    } else if (name.includes('包')) {
+                        value = Math.round(value) + ' pps';
+                    }
+                    
+                    result += `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span> ${name}: ${value}<br>`;
+                });
+                
+                return result;
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'time',
+            splitLine: {
+                show: false
+            }
+        },
+        yAxis: {
+            type: 'value',
+            boundaryGap: [0, '30%'],
+            splitLine: {
+                show: true
+            },
+            axisLabel: {
+                formatter: '{value} Mbps'
+            }
+        },
+        series: [
+            {
+                name: '入站流量',
+                type: 'line',
+                showSymbol: false,
+                emphasis: {
+                    focus: 'series'
+                },
+                lineStyle: {
+                    width: 2
+                },
+                areaStyle: {
+                    opacity: 0.3
+                },
+                itemStyle: {
+                    color: '#1cc88a'
+                },
+                data: timeData.map((time, i) => [time, inData[i]])
+            },
+            {
+                name: '出站流量',
+                type: 'line',
+                showSymbol: false,
+                emphasis: {
+                    focus: 'series'
+                },
+                lineStyle: {
+                    width: 2
+                },
+                areaStyle: {
+                    opacity: 0.3
+                },
+                itemStyle: {
+                    color: '#4e73df'
+                },
+                data: timeData.map((time, i) => [time, outData[i]])
+            }
+        ]
+    };
+    
+    realtimeChart.setOption(option);
+    
+    // 定义当前视图
+    let currentView = 'traffic';
+    
+    // 切换视图
+    document.querySelectorAll('[data-view]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            currentView = this.dataset.view;
+            updateChartView();
+        });
+    });
+    
+    function updateChartView() {
+        let newOption = {};
+        
+        switch(currentView) {
+            case 'traffic':
+                newOption = {
+                    title: {
+                        text: '实时流量监控 (Mbps)',
+                    },
+                    yAxis: {
+                        axisLabel: {
+                            formatter: '{value} Mbps'
+                        }
+                    },
+                    series: [
+                        {
+                            name: '入站流量',
+                            type: 'line',
+                            data: timeData.map((time, i) => [time, inData[i]])
+                        },
+                        {
+                            name: '出站流量',
+                            type: 'line',
+                            data: timeData.map((time, i) => [time, outData[i]])
+                        }
+                    ]
+                };
+                break;
+                
+            case 'packets':
+                newOption = {
+                    title: {
+                        text: '实时数据包监控 (pps)',
+                    },
+                    yAxis: {
+                        axisLabel: {
+                            formatter: '{value} pps'
+                        }
+                    },
+                    series: [
+                        {
+                            name: '入站数据包',
+                            type: 'line',
+                            itemStyle: {
+                                color: '#f6c23e'
+                            },
+                            data: timeData.map((time, i) => [time, inPacketsData[i]])
+                        },
+                        {
+                            name: '出站数据包',
+                            type: 'line',
+                            itemStyle: {
+                                color: '#e74a3b'
+                            },
+                            data: timeData.map((time, i) => [time, outPacketsData[i]])
+                        }
+                    ]
+                };
+                break;
+                
+            case 'errors':
+                // 生成一些模拟错误包数据
+                const inErrors = timeData.map(() => Math.random() * 5);
+                const outErrors = timeData.map(() => Math.random() * 3);
+                
+                newOption = {
+                    title: {
+                        text: '实时错误包监控',
+                    },
+                    yAxis: {
+                        axisLabel: {
+                            formatter: '{value} pps'
+                        }
+                    },
+                    series: [
+                        {
+                            name: '入站错误包',
+                            type: 'line',
+                            itemStyle: {
+                                color: '#e74a3b'
+                            },
+                            data: timeData.map((time, i) => [time, inErrors[i]])
+                        },
+                        {
+                            name: '出站错误包',
+                            type: 'line',
+                            itemStyle: {
+                                color: '#f6c23e'
+                            },
+                            data: timeData.map((time, i) => [time, outErrors[i]])
+                        }
+                    ]
+                };
+                break;
+                
+            case 'combined':
+                newOption = {
+                    title: {
+                        text: '组合视图监控',
+                    },
+                    yAxis: [
+                        {
+                            type: 'value',
+                            name: '流量',
+                            axisLabel: {
+                                formatter: '{value} Mbps'
+                            }
+                        },
+                        {
+                            type: 'value',
+                            name: '数据包',
+                            axisLabel: {
+                                formatter: '{value} pps'
+                            }
+                        }
+                    ],
+                    series: [
+                        {
+                            name: '入站流量',
+                            type: 'line',
+                            yAxisIndex: 0,
+                            data: timeData.map((time, i) => [time, inData[i]])
+                        },
+                        {
+                            name: '出站流量',
+                            type: 'line',
+                            yAxisIndex: 0,
+                            data: timeData.map((time, i) => [time, outData[i]])
+                        },
+                        {
+                            name: '入站数据包',
+                            type: 'bar',
+                            yAxisIndex: 1,
+                            itemStyle: {
+                                color: '#f6c23e',
+                                opacity: 0.5
+                            },
+                            data: timeData.map((time, i) => [time, inPacketsData[i]])
+                        },
+                        {
+                            name: '出站数据包',
+                            type: 'bar',
+                            yAxisIndex: 1,
+                            itemStyle: {
+                                color: '#e74a3b',
+                                opacity: 0.5
+                            },
+                            data: timeData.map((time, i) => [time, outPacketsData[i]])
+                        }
+                    ]
+                };
+                break;
+        }
+        
+        realtimeChart.setOption(newOption);
+    }
+    
+    // 获取实时流量数据
+    function fetchRealtimeData() {
+        // 在实际项目中这里会从API获取实时数据
+        // 这里使用模拟数据
+        const inRate = Math.random() * 200 + 100; // 100-300 Mbps
+        const outRate = Math.random() * 150 + 50; // 50-200 Mbps
+        const inPackets = inRate * 100; // 假设每Mbps约100个包
+        const outPackets = outRate * 100;
+        const utilization = ((inRate + outRate) / 2000) * 100; // 假设总带宽2Gbps
+        
+        // 添加新数据
+        const now = new Date();
+        timeData.push(now);
+        inData.push(inRate);
+        outData.push(outRate);
+        inPacketsData.push(inPackets);
+        outPacketsData.push(outPackets);
+        
+        // 移除旧数据
+        if (timeData.length > 60) {
+            timeData.shift();
+            inData.shift();
+            outData.shift();
+            inPacketsData.shift();
+            outPacketsData.shift();
+        }
+        
+        // 更新图表
+        updateChartView();
+        
+        // 更新统计信息
+        document.getElementById('in-traffic').textContent = inRate.toFixed(2) + ' Mbps';
+        document.getElementById('out-traffic').textContent = outRate.toFixed(2) + ' Mbps';
+        document.getElementById('packets-in').textContent = Math.round(inPackets) + ' pps';
+        document.getElementById('packets-out').textContent = Math.round(outPackets) + ' pps';
+        
+        // 更新利用率
+        const utilizationBar = document.getElementById('utilization-bar');
+        utilizationBar.style.width = utilization + '%';
+        utilizationBar.textContent = utilization.toFixed(1) + '%';
+        utilizationBar.setAttribute('aria-valuenow', utilization.toFixed(1));
+        
+        // 根据利用率改变颜色
+        if (utilization < 30) {
+            utilizationBar.className = 'progress-bar bg-success';
+        } else if (utilization < 70) {
+            utilizationBar.className = 'progress-bar bg-warning';
+        } else {
+            utilizationBar.className = 'progress-bar bg-danger';
+        }
+        
+        // 更新最后更新时间
+        document.getElementById('last-update').textContent = now.toLocaleString();
+    }
+    
+    // 刷新按钮事件
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+        fetchRealtimeData();
+    });
+    
+    // 初始获取数据
+    fetchRealtimeData();
+    
+    // 每秒更新一次
+    let updateInterval = setInterval(fetchRealtimeData, 1000);
+    
+    // 窗口关闭或切换时清除定时器
+    window.addEventListener('beforeunload', function() {
+        clearInterval(updateInterval);
+    });
+    
+    // 窗口大小改变时重绘图表
+    window.addEventListener('resize', function() {
+        realtimeChart.resize();
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,901 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/device-manager.css') }}">
+<style>
+    /* 设备详情页增强样式 */
+    .device-detail-header {
+        background: linear-gradient(120deg, #2c3e50, #4CA1AF);
+        color: white;
+        padding: 1.5rem 0;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-radius: 0 0 10px 10px;
+    }
+    
+    .device-icon-lg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 70px;
+        height: 70px;
+        border-radius: 15px;
+        font-size: 1.8rem;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: transform 0.3s ease;
+    }
+    
+    .device-icon-lg:hover {
+        transform: scale(1.05);
+    }
+    
+    .device-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .device-info-main h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .device-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .device-status-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .status-online {
+        background-color: rgba(40, 167, 69, 0.2);
+        color: #28a745;
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    
+    .status-offline {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    .device-type-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .device-ip {
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+        padding: 0.2rem 0.5rem;
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+    }
+    
+    .device-actions .btn {
+        border-radius: 20px;
+        padding: 0.375rem 1rem;
+        transition: all 0.3s;
+    }
+    
+    .stat-card {
+        border-radius: 10px;
+        transition: transform 0.3s, box-shadow 0.3s;
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card-body {
+        padding: 1.25rem;
+    }
+    
+    .traffic-chart-container {
+        min-height: 300px;
+        border-radius: 5px;
+        background-color: rgba(250, 250, 250, 0.6);
+    }
+    
+    .info-card, .traffic-card, .interface-card, .terminal-card, .alert-card {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 100%;
+    }
+    
+    .info-card:hover, .traffic-card:hover, .interface-card:hover, .terminal-card:hover, .alert-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    }
+    
+    .card-header {
+        padding: 1rem 1.25rem;
+        background-color: rgba(248, 249, 250, 0.8);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .terminal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .terminal-item {
+        border-radius: 10px;
+        overflow: hidden;
+        transition: all 0.3s;
+        border: 1px solid rgba(0,0,0,0.08);
+        display: flex;
+        align-items: center;
+        padding: 0.5rem;
+    }
+    
+    .terminal-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+    
+    .terminal-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        color: white;
+        font-size: 1.1rem;
+    }
+    
+    .terminal-info {
+        flex: 1;
+    }
+    
+    .terminal-info h6 {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .terminal-ip, .terminal-mac {
+        margin-bottom: 0.25rem;
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .terminal-status {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 10px;
+        display: inline-block;
+    }
+    
+    .status-online {
+        background-color: rgba(40, 167, 69, 0.2);
+        color: #28a745;
+    }
+    
+    .status-offline {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem 0;
+        color: #6c757d;
+    }
+    
+    .empty-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .interface-progress {
+        height: 8px;
+        border-radius: 4px;
+    }
+    
+    .detail-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .detail-value {
+        font-weight: 500;
+    }
+    
+    .config-label {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+    
+    .config-value {
+        font-weight: 500;
+        font-family: monospace;
+    }
+    
+    /* 加载中状态样式 */
+    .chart-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+        flex-direction: column;
+        color: #6c757d;
+    }
+    
+    .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+        .device-title {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .device-info-main h1 {
+            font-size: 1.5rem;
+        }
+        
+        .device-actions {
+            margin-top: 1rem;
+            text-align: left !important;
+        }
+        
+        .terminal-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* 数据刷新动画 */
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .pulse-animation {
+        animation: pulse 1.5s ease-in-out;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 设备详情页标题栏 -->
+<div class="device-detail-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="device-title">
+                    <div class="device-icon-lg" style="background-color: 
+                        {% if device.device_type == 'Router' %}var(--primary-color)
+                        {% elif device.device_type == 'Switch' %}var(--success-color)
+                        {% elif device.device_type == 'Server' %}var(--warning-color)
+                        {% else %}var(--info-color){% endif %}">
+                        {% if device.device_type == 'Router' %}
+                        <i class="fas fa-project-diagram"></i>
+                        {% elif device.device_type == 'Switch' %}
+                        <i class="fas fa-network-wired"></i>
+                        {% elif device.device_type == 'Server' %}
+                        <i class="fas fa-server"></i>
+                        {% else %}
+                        <i class="fas fa-wifi"></i>
+                        {% endif %}
+                    </div>
+                    <div class="device-info-main">
+                        <h1>{{ device.name }}</h1>
+                        <div class="device-meta">
+                            <span class="device-type-badge device-type-{{ device.device_type|lower }}">
+                                {{ device.device_type }}
+                            </span>
+                            <span class="device-status-badge status-{{ device.status }}">
+                                <i class="fas fa-circle me-1" style="font-size: 8px;"></i>
+                                {{ "在线" if device.status == "online" else "离线" }}
+                            </span>
+                            <span class="device-ip">{{ device.ip_address }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="device-actions text-md-end">
+                    <button class="btn btn-outline-light me-2" id="refreshDevice">
+                        <i class="fas fa-sync-alt"></i> 刷新
+                    </button>
+                    <a href="{{ url_for('device.edit', id=device.id) }}" class="btn btn-light me-2">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
+                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteDeviceModal">
+                        <i class="fas fa-trash"></i> 删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- 设备概览统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
+            <div class="stat-card bg-gradient-primary">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>终端数量</h5>
+                        <h2>{{ connected_terminals|length }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
+            <div class="stat-card bg-gradient-success">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>总流量</h5>
+                        <h2>{{ (device.total_traffic / 1024 / 1024)|round(2) if device.total_traffic else 0 }} MB</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
+            <div class="stat-card bg-gradient-warning">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>入站流量</h5>
+                        <h2>{{ (device.in_traffic / 1024 / 1024)|round(2) if device.in_traffic else 0 }} MB</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
+            <div class="stat-card bg-gradient-info">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>出站流量</h5>
+                        <h2>{{ (device.out_traffic / 1024 / 1024)|round(2) if device.out_traffic else 0 }} MB</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 流量趋势图卡片 -->
+        <div class="col-lg-8 order-lg-2 mb-4">
+            <div class="traffic-card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-chart-line me-2"></i>流量趋势</h6>
+                        <div class="traffic-controls">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="流量时间范围">
+                                <button type="button" class="btn btn-outline-success active" data-period="24h">24小时</button>
+                                <button type="button" class="btn btn-outline-success" data-period="7d">7天</button>
+                                <button type="button" class="btn btn-outline-success" data-period="30d">30天</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="traffic-chart" class="traffic-chart-container">
+                        <div class="chart-loading">
+                            <div class="loader"></div>
+                            <p>加载流量数据中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 左侧面板 -->
+        <div class="col-lg-4 order-lg-1 mb-4">
+            <!-- 设备基本信息卡片 -->
+            <div class="info-card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle me-2"></i>设备信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备ID</div>
+                        <div class="col-md-8 detail-value">{{ device.id }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备名称</div>
+                        <div class="col-md-8 detail-value">{{ device.name }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">IP地址</div>
+                        <div class="col-md-8 detail-value">{{ device.ip_address }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备类型</div>
+                        <div class="col-md-8 detail-value">{{ device.device_type }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">位置</div>
+                        <div class="col-md-8 detail-value">{{ device.location }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">状态</div>
+                        <div class="col-md-8 detail-value">
+                            {% if device.status == 'online' %}
+                            <span class="badge bg-success">在线</span>
+                            {% else %}
+                            <span class="badge bg-danger">离线</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">最后更新</div>
+                        <div class="col-md-8 detail-value">{{ device.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 告警信息卡片 -->
+            <div class="alert-card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>告警信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert-summary">
+                        <div class="alert-count">
+                            <span class="alert-number">{{ device.critical_alerts|default(0) }}</span>
+                            <span class="alert-label">条紧急告警</span>
+                        </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                style="width: {{ device.critical_alerts|default(0) / 10 * 100 if device.critical_alerts|default(0) <= 10 else 100 }}%" 
+                                aria-valuenow="{{ device.critical_alerts|default(0) }}" aria-valuemin="0" aria-valuemax="10"></div>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-sm btn-danger w-100">
+                        <i class="fas fa-eye me-1"></i> 查看告警
+                    </a>
+                </div>
+            </div>
+            
+            <!-- SNMP配置卡片 -->
+            <div class="info-card d-none d-lg-block">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-cogs me-2"></i>接口配置</h6>
+                </div>
+                <div class="card-body">
+                    <div class="configuration-item mb-2">
+                        <div class="config-label">SNMP版本</div>
+                        <div class="config-value">{{ device.snmp_version }}</div>
+                    </div>
+                    <div class="configuration-item mb-2">
+                        <div class="config-label">团体字符串</div>
+                        <div class="config-value">{{ device.snmp_community }}</div>
+                    </div>
+                    <div class="configuration-item mb-2">
+                        <div class="config-label">SNMP端口</div>
+                        <div class="config-value">{{ device.snmp_port }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 接口列表卡片 -->
+        <div class="col-lg-6 mb-4">
+            <div class="interface-card h-100">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-network-wired me-2"></i>接口列表</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-borderless mb-0" id="interfacesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>接口名称</th>
+                                    <th>状态</th>
+                                    <th>MAC地址</th>
+                                    <th>速率</th>
+                                    <th>入站流量</th>
+                                    <th>出站流量</th>
+                                    <th>利用率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(1, 5) %}
+                                <tr>
+                                    <td><strong>GigabitEthernet0/{{ i }}</strong></td>
+                                    <td>
+                                        <span class="status-badge status-online me-1"></span>
+                                        <span class="status-text">Up</span>
+                                    </td>
+                                    <td><span class="text-monospace">00:1A:2B:3C:4D:{{ '%02X' % i }}</span></td>
+                                    <td>1 Gbps</td>
+                                    <td>{{ (100 * i)|round(2) }} Mbps</td>
+                                    <td>{{ (80 * i)|round(2) }} Mbps</td>
+                                    <td>
+                                        <div class="progress interface-progress">
+                                            <div class="progress-bar bg-info" role="progressbar" 
+                                                style="width: {{ 10 * i }}%" 
+                                                aria-valuenow="{{ 10 * i }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ 10 * i }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 连接的终端卡片 -->
+        <div class="col-lg-6 mb-4">
+            <div class="terminal-card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-laptop me-2"></i>连接的终端</h6>
+                        <div class="terminal-count">
+                            <span class="badge bg-warning rounded-pill">{{ connected_terminals|length }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if connected_terminals %}
+                    <div class="terminal-grid">
+                        {% for terminal in connected_terminals[:6] %}
+                        <div class="terminal-item shadow-sm">
+                            <div class="terminal-icon" style="background-color: 
+                                {% if terminal.device_type == 'PC' %}var(--primary-color)
+                                {% elif terminal.device_type == 'Mobile' %}var(--warning-color)
+                                {% else %}var(--info-color){% endif %}">
+                                {% if terminal.device_type == 'PC' %}
+                                <i class="fas fa-desktop"></i>
+                                {% elif terminal.device_type == 'Mobile' %}
+                                <i class="fas fa-mobile-alt"></i>
+                                {% else %}
+                                <i class="fas fa-microchip"></i>
+                                {% endif %}
+                            </div>
+                            <div class="terminal-info">
+                                <h6>{{ terminal.hostname }}</h6>
+                                <p class="terminal-ip mb-1">
+                                    <i class="fas fa-network-wired me-1 text-primary"></i>
+                                    {{ terminal.ip_address }}
+                                </p>
+                                <p class="terminal-mac mb-1">
+                                    <i class="fas fa-fingerprint me-1 text-success"></i>
+                                    {{ terminal.mac_address }}
+                                </p>
+                                <span class="terminal-status {{ 'status-online' if terminal.is_active else 'status-offline' }}">
+                                    {{ "在线" if terminal.is_active else "离线" }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if connected_terminals|length > 6 %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('device.device_terminals', id=device.id) }}" class="btn btn-sm btn-outline-warning">
+                            查看全部 {{ connected_terminals|length }} 台终端
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-laptop-code"></i></div>
+                        <p>没有连接的终端设备</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 附加信息区域 -->
+    <div class="row d-lg-none">
+        <!-- SNMP配置卡片 (小屏幕上显示) -->
+        <div class="col-md-6 mb-4">
+            <div class="info-card">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-cogs me-2"></i>接口配置</h6>
+                </div>
+                <div class="card-body">
+                    <div class="configuration-item mb-2">
+                        <div class="config-label">SNMP版本</div>
+                        <div class="config-value">{{ device.snmp_version }}</div>
+                    </div>
+                    <div class="configuration-item mb-2">
+                        <div class="config-label">团体字符串</div>
+                        <div class="config-value">{{ device.snmp_community }}</div>
+                    </div>
+                    <div class="configuration-item mb-2">
+                        <div class="config-label">SNMP端口</div>
+                        <div class="config-value">{{ device.snmp_port }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 设备描述卡片 -->
+        <div class="col-md-6 mb-4">
+            <div class="info-card">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-file-alt me-2"></i>设备描述</h6>
+                </div>
+                <div class="card-body">
+                    <p class="device-description">{{ device.description or '暂无描述' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除设备确认模态框 -->
+<div class="modal fade" id="deleteDeviceModal" tabindex="-1" aria-labelledby="deleteDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDeviceModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    此操作不可逆转，删除后将无法恢复设备数据。
+                </div>
+                <p>您确定要删除设备 <strong>{{ device.name }}</strong> 吗？</p>
+                
+                {% if connected_terminals and connected_terminals|length > 0 %}
+                <div class="mt-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="deleteTerminalsCheckbox" checked>
+                        <label class="form-check-label" for="deleteTerminalsCheckbox">
+                            同时删除关联的终端设备 ({{ connected_terminals|length }} 台)
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-1">
+                        <i class="fas fa-info-circle"></i> 如果不删除关联的终端设备，它们将被保留但会断开与此设备的连接
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form action="{{ url_for('device.delete', id=device.id) }}" method="POST" id="deleteDeviceForm">
+                    <input type="hidden" name="delete_terminals" id="deleteTerminalsInput" value="1">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> 确认删除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- 确保ECharts库在device-manager.js之前加载 -->
+<script src="{{ url_for('static', filename='vendor/echarts/echarts.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/device-manager.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化流量图表数据
+        const chartContainer = document.getElementById('traffic-chart');
+        
+        if (typeof echarts !== 'undefined') {
+            // 移除加载中状态
+            const loadingElement = chartContainer.querySelector('.chart-loading');
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+            
+            window.trafficChart = echarts.init(chartContainer);
+            
+            const option = {
+                title: {
+                    text: '24小时流量趋势',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 14,
+                        fontWeight: 'normal'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross',
+                        label: {
+                            backgroundColor: '#6a7985'
+                        }
+                    }
+                },
+                legend: {
+                    data: ['入站流量', '出站流量'],
+                    bottom: 0
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: 60,
+                    top: 50,
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: {{ hours|tojson|safe }}
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value} MB'
+                    }
+                },
+                series: [
+                    {
+                        name: '入站流量',
+                        type: 'line',
+                        stack: '总量',
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                {offset: 0, color: 'rgba(28, 200, 138, 0.5)'},
+                                {offset: 1, color: 'rgba(28, 200, 138, 0.1)'}
+                            ])
+                        },
+                        emphasis: {
+                            focus: 'series'
+                        },
+                        data: {{ in_traffic|tojson|safe }},
+                        smooth: true,
+                        lineStyle: {
+                            width: 2,
+                            color: '#1cc88a'
+                        },
+                        itemStyle: {
+                            color: '#1cc88a'
+                        }
+                    },
+                    {
+                        name: '出站流量',
+                        type: 'line',
+                        stack: '总量',
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                {offset: 0, color: 'rgba(78, 115, 223, 0.5)'},
+                                {offset: 1, color: 'rgba(78, 115, 223, 0.1)'}
+                            ])
+                        },
+                        emphasis: {
+                            focus: 'series'
+                        },
+                        data: {{ out_traffic|tojson|safe }},
+                        smooth: true,
+                        lineStyle: {
+                            width: 2,
+                            color: '#4e73df'
+                        },
+                        itemStyle: {
+                            color: '#4e73df'
+                        }
+                    }
+                ]
+            };
+            
+            window.trafficChart.setOption(option);
+            
+            // 监听窗口大小变化，调整图表大小
+            window.addEventListener('resize', function() {
+                window.trafficChart.resize();
+            });
+        } else {
+            // 显示错误信息
+            chartContainer.innerHTML = '<div class="alert alert-danger m-3">图表库加载失败，请刷新页面重试</div>';
+        }
+        
+        // 初始化接口表格
+        if (typeof $.fn.DataTable !== 'undefined') {
+            $('#interfacesTable').DataTable({
+                "language": {
+                    "lengthMenu": "每页显示 _MENU_ 条记录",
+                    "zeroRecords": "没有找到匹配的记录",
+                    "info": "显示第 _START_ 至 _END_ 条记录，共 _TOTAL_ 条",
+                    "infoEmpty": "显示第 0 至 0 条记录，共 0 条",
+                    "infoFiltered": "(从 _MAX_ 条记录中过滤)",
+                    "search": "搜索:",
+                    "paginate": {
+                        "first": "首页",
+                        "last": "末页",
+                        "next": "下一页",
+                        "previous": "上一页"
+                    }
+                },
+                "pageLength": 5,
+                "ordering": true,
+                "searching": false,
+                "responsive": true,
+                "dom": "<'row'<'col-sm-12'tr>><'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
+            });
+        }
+        
+        // 刷新按钮动画效果
+        const refreshBtn = document.getElementById('refreshDevice');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                this.querySelector('i').classList.add('fa-spin');
+                // 为统计卡片添加刷新动画
+                document.querySelectorAll('.stat-card').forEach(function(card) {
+                    card.classList.add('pulse-animation');
+                });
+                
+                // 模拟刷新延迟
+                setTimeout(function() {
+                    refreshBtn.querySelector('i').classList.remove('fa-spin');
+                    document.querySelectorAll('.stat-card').forEach(function(card) {
+                        card.classList.remove('pulse-animation');
+                    });
+                }, 1500);
+            });
+        }
+        
+        // 处理删除设备模态框中的终端设备删除选项
+        const deleteTerminalsCheckbox = document.getElementById('deleteTerminalsCheckbox');
+        const deleteTerminalsInput = document.getElementById('deleteTerminalsInput');
+        
+        if (deleteTerminalsCheckbox && deleteTerminalsInput) {
+            deleteTerminalsCheckbox.addEventListener('change', function() {
+                deleteTerminalsInput.value = this.checked ? '1' : '0';
+            });
+        }
+    });
+</script>
+{% endblock %} 

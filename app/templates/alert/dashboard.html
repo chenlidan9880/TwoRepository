@@ -1,0 +1,465 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stats-card {
+        transition: transform 0.3s;
+        margin-bottom: 20px;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .device-alert-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-bottom: 1px solid #eaecf4;
+    }
+    
+    .device-alert-item:last-child {
+        border-bottom: none;
+    }
+    
+    .device-alert-name {
+        font-weight: bold;
+    }
+    
+    .device-alert-count {
+        background-color: #4e73df;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    
+    .period-selector {
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1><i class="fas fa-chart-line"></i> 告警统计</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group mr-2">
+                <a href="{{ url_for('alert.index') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-list"></i> 返回告警列表
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                    <i class="fas fa-sync-alt"></i> 刷新数据
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2 stats-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                总告警</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bell fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2 stats-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                紧急告警</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ critical }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2 stats-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                警告</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ warning }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2 stats-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                提示</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ info }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-info-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表行 -->
+    <div class="row">
+        <!-- 时间趋势图 -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">告警趋势</h6>
+                </div>
+                <div class="card-body">
+                    <div class="period-selector">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary period-btn active" data-days="7">最近7天</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary period-btn" data-days="14">最近14天</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary period-btn" data-days="30">最近30天</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="alertTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 按设备统计 -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">设备告警分布</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 200px;">
+                        <canvas id="deviceDistributionChart"></canvas>
+                    </div>
+                    <hr>
+                    <h6 class="font-weight-bold">未处理告警最多的设备</h6>
+                    <div class="device-alerts-list">
+                        {% for stat in device_stats[:5] %}
+                        <div class="device-alert-item">
+                            <div class="device-alert-name">{{ stat.device_name }}</div>
+                            <div class="device-alert-count">{{ stat.count }}</div>
+                        </div>
+                        {% endfor %}
+                        {% if not device_stats %}
+                        <div class="text-center text-muted py-3">暂无未处理告警</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二行图表 -->
+    <div class="row">
+        <!-- 告警类型分布 -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">告警类型分布</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="alertTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 处理状态统计 -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">告警处理状态</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="alertStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // 页面加载完成后初始化图表
+    document.addEventListener('DOMContentLoaded', function() {
+        // 刷新按钮事件
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // 初始化趋势图
+        initTrendChart(7);
+        
+        // 时间段选择按钮事件
+        document.querySelectorAll('.period-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.period-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+                const days = parseInt(this.getAttribute('data-days'));
+                initTrendChart(days);
+            });
+        });
+        
+        // 初始化设备分布图
+        initDeviceChart();
+        
+        // 初始化告警类型图
+        initAlertTypeChart();
+        
+        // 初始化告警状态图
+        initAlertStatusChart();
+    });
+    
+    // 初始化趋势图
+    function initTrendChart(days) {
+        fetch(`/alert/api/stats?days=${days}`)
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('alertTrendChart').getContext('2d');
+                
+                // 如果已经存在图表，先销毁
+                if (window.trendChart) {
+                    window.trendChart.destroy();
+                }
+                
+                // 准备数据
+                const labels = data.daily_data.map(item => item.date);
+                const criticalData = data.daily_data.map(item => item.critical);
+                const warningData = data.daily_data.map(item => item.warning);
+                const infoData = data.daily_data.map(item => item.info);
+                
+                // 创建新图表
+                window.trendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '紧急',
+                                data: criticalData,
+                                borderColor: '#e74a3b',
+                                backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.1,
+                                fill: true
+                            },
+                            {
+                                label: '警告',
+                                data: warningData,
+                                borderColor: '#f6c23e',
+                                backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.1,
+                                fill: true
+                            },
+                            {
+                                label: '提示',
+                                data: infoData,
+                                borderColor: '#36b9cc',
+                                backgroundColor: 'rgba(54, 185, 204, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.1,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: `最近${days}天告警趋势`
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('获取趋势数据失败:', error));
+    }
+    
+    // 初始化设备图表
+    function initDeviceChart() {
+        fetch('/alert/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('deviceDistributionChart').getContext('2d');
+                
+                // 准备数据
+                const deviceNames = data.device_stats.map(item => item.device_name);
+                const deviceCounts = data.device_stats.map(item => item.count);
+                
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: deviceNames.length > 0 ? deviceNames : ['暂无数据'],
+                        datasets: [{
+                            data: deviceCounts.length > 0 ? deviceCounts : [1],
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                                '#6f42c1', '#20c9a6', '#5a5c69', '#858796', '#d1d3e2'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                display: deviceNames.length > 0
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('获取设备数据失败:', error));
+    }
+    
+    // 初始化告警类型图表
+    function initAlertTypeChart() {
+        fetch('/alert/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('alertTypeChart').getContext('2d');
+                
+                // 准备数据
+                const typeLabels = data.alert_type_stats.map(item => {
+                    switch(item.type) {
+                        case 'cpu_high': return 'CPU使用率过高';
+                        case 'memory_high': return '内存使用率过高';
+                        case 'traffic_high': return '流量负载过高';
+                        case 'device_down': return '设备离线';
+                        case 'interface_down': return '接口离线';
+                        default: return item.type;
+                    }
+                });
+                const typeCounts = data.alert_type_stats.map(item => item.count);
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: typeLabels.length > 0 ? typeLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '告警数量',
+                            data: typeCounts.length > 0 ? typeCounts : [0],
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                                '#6f42c1', '#20c9a6', '#5a5c69'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('获取告警类型数据失败:', error));
+    }
+    
+    // 初始化告警状态图表
+    function initAlertStatusChart() {
+        fetch('/alert/api/count')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('alertStatusChart').getContext('2d');
+                
+                // 计算已处理数量
+                const handled = data.total - data.unhandled;
+                
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['已处理', '未处理'],
+                        datasets: [{
+                            data: [handled, data.unhandled],
+                            backgroundColor: ['#1cc88a', '#e74a3b']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        },
+                        cutout: '70%'
+                    }
+                });
+            })
+            .catch(error => console.error('获取告警状态数据失败:', error));
+    }
+</script>
+{% endblock %} 

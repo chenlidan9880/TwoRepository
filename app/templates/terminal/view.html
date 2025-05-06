@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .detail-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #17a2b8;
+    }
+    .traffic-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #28a745;
+    }
+    .device-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #fd7e14;
+    }
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .status-badge {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.9rem;
+    }
+    .traffic-stat {
+        text-align: center;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+    .traffic-stat h3 {
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
+    .traffic-stat p {
+        margin-bottom: 0;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('terminal.index') }}">终端设备管理</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ terminal.hostname }}</li>
+                </ol>
+            </nav>
+            <h1>
+                <i class="fas fa-laptop"></i> 
+                {{ terminal.hostname }}
+                {% if terminal.is_active %}
+                <span class="badge bg-success status-badge">在线</span>
+                {% else %}
+                <span class="badge bg-danger status-badge">离线</span>
+                {% endif %}
+            </h1>
+        </div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card detail-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> 基本信息</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">终端ID</div>
+                        <div class="col-md-8">{{ terminal.id }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">主机名</div>
+                        <div class="col-md-8">{{ terminal.hostname }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">IP地址</div>
+                        <div class="col-md-8">{{ terminal.ip_address }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">MAC地址</div>
+                        <div class="col-md-8">{{ terminal.mac_address }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">设备类型</div>
+                        <div class="col-md-8">{{ terminal.device_type }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">操作系统</div>
+                        <div class="col-md-8">{{ terminal.os_type }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">状态</div>
+                        <div class="col-md-8">
+                            {% if terminal.is_active %}
+                            <span class="text-success"><i class="fas fa-circle fa-sm"></i> 在线</span>
+                            {% else %}
+                            <span class="text-danger"><i class="fas fa-circle fa-sm"></i> 离线</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 连接的网络设备 -->
+            <div class="card device-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-network-wired"></i> 网络连接</h5>
+                </div>
+                <div class="card-body">
+                    {% if connected_device %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">网络设备</div>
+                        <div class="col-md-8">
+                            <a href="{{ url_for('device.view', id=connected_device.id) }}">
+                                {{ connected_device.name }}
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">设备类型</div>
+                        <div class="col-md-8">{{ connected_device.device_type }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">连接端口</div>
+                        <div class="col-md-8">{{ terminal.port_number or '未知' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">连接类型</div>
+                        <div class="col-md-8">{{ terminal.connection_type or '未知' }}</div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col">
+                            <form action="{{ url_for('terminal.assign_device', id=terminal.id) }}" method="post">
+                                <input type="hidden" name="device_id" value="">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定要断开与该网络设备的连接吗？')">
+                                    <i class="fas fa-unlink"></i> 断开连接
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">该终端未连接到任何网络设备</p>
+
+                    <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#assignDeviceModal">
+                        <i class="fas fa-link"></i> 分配到网络设备
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card detail-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-history"></i> 活动记录</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">首次发现</div>
+                        <div class="col-md-8">{{ terminal.first_seen.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">最后活动</div>
+                        <div class="col-md-8">{{ terminal.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">在线时长</div>
+                        <div class="col-md-8">
+                            {% set days = ((terminal.last_seen - terminal.first_seen).total_seconds() / 86400)|int %}
+                            {% if days > 0 %}
+                                {{ days }} 天
+                            {% else %}
+                                {% set hours = ((terminal.last_seen - terminal.first_seen).total_seconds() / 3600)|int %}
+                                {{ hours }} 小时
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 流量统计 -->
+            <div class="card traffic-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-chart-bar"></i> 流量统计</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="traffic-stat bg-light">
+                                <h3>{{ (terminal.in_traffic + terminal.out_traffic) / 1024 / 1024|round(2) }} MB</h3>
+                                <p>总流量</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="traffic-stat bg-light">
+                                <h3>{{ terminal.out_traffic / 1024 / 1024|round(2) }} MB</h3>
+                                <p>上行流量</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="traffic-stat bg-light">
+                                <h3>{{ terminal.in_traffic / 1024 / 1024|round(2) }} MB</h3>
+                                <p>下行流量</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 流量趋势图 -->
+    <div class="card traffic-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0"><i class="fas fa-chart-line"></i> 流量趋势</h5>
+        </div>
+        <div class="card-body">
+            <div id="traffic-chart" style="height: 350px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 分配网络设备弹出窗口 -->
+<div class="modal fade" id="assignDeviceModal" tabindex="-1" role="dialog" aria-labelledby="assignDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignDeviceModalLabel">分配到网络设备</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="{{ url_for('terminal.assign_device', id=terminal.id) }}" method="post">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="device_id">选择网络设备</label>
+                        <select class="form-control" id="device_id" name="device_id" required>
+                            <option value="">- 请选择 -</option>
+                            <!-- 这里通过AJAX加载可用的网络设备列表 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="connect_port">连接端口</label>
+                        <input type="text" class="form-control" id="connect_port" name="connect_port" placeholder="例如: GE0/0/1, WLAN1">
+                    </div>
+                    <div class="form-group">
+                        <label for="connect_type">连接类型</label>
+                        <select class="form-control" id="connect_type" name="connect_type">
+                            <option value="wired">有线连接</option>
+                            <option value="wireless">无线连接</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $(document).ready(function() {
+        // 加载网络设备列表
+        $.getJSON("{{ url_for('device.api_list') }}", function(data) {
+            var deviceSelect = $('#device_id');
+            $.each(data, function(index, device) {
+                deviceSelect.append($('<option>', {
+                    value: device.id,
+                    text: device.name + ' (' + device.device_type + ', ' + device.ip_address + ')'
+                }));
+            });
+        });
+    });
+</script>
+{% endblock %} 

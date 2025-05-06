@@ -1,0 +1,660 @@
+/* 设备管理界面优化样式 */
+:root {
+  --primary-color: #4e73df;
+  --primary-light: #6e8ce7;
+  --primary-dark: #3a5cbe;
+  --success-color: #1cc88a;
+  --warning-color: #f6c23e;
+  --danger-color: #e74a3b;
+  --info-color: #36b9cc;
+  --dark-color: #5a5c69;
+  --light-color: #f8f9fc;
+  --border-radius: 0.35rem;
+  --card-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+  --hover-shadow: 0 0.3rem 2rem 0 rgba(58, 59, 69, 0.2);
+  --transition-time: 0.3s;
+}
+
+/* 整体布局优化 */
+.dashboard-container {
+  padding: 1.5rem 0;
+}
+
+/* 统计卡片样式 */
+.stats-row {
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  height: 100%;
+  color: white;
+  transition: transform var(--transition-time);
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, var(--success-color), #169e6b);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, var(--warning-color), #d9aa35);
+}
+
+.bg-gradient-danger {
+  background: linear-gradient(135deg, var(--danger-color), #c93e32);
+}
+
+.bg-gradient-info {
+  background: linear-gradient(135deg, var(--info-color), #2a9aab);
+}
+
+.stat-card-body {
+  display: flex;
+  padding: 1.5rem;
+}
+
+.stat-card-icon {
+  font-size: 2.5rem;
+  margin-right: 1rem;
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+}
+
+.stat-card-info h5 {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.8;
+}
+
+.stat-card-info h2 {
+  font-size: 2rem;
+  margin-bottom: 0;
+  font-weight: 700;
+}
+
+.stat-card-progress {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.stat-card .progress {
+  height: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.stat-card .progress-bar {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* 过滤器样式 */
+.filter-container {
+  margin-bottom: 1.5rem;
+}
+
+.filter-item .form-select {
+  border-radius: 50px;
+  padding-left: 1rem;
+}
+
+.search-box {
+  position: relative;
+}
+
+.search-box i {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #aaa;
+}
+
+.search-box input {
+  padding-left: 2.5rem;
+  border-radius: 50px;
+}
+
+/* 设备卡片网格 */
+.device-grid {
+  margin-bottom: 2rem;
+}
+
+.device-card {
+  border-radius: var(--border-radius);
+  background-color: white;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  height: 100%;
+  transition: all var(--transition-time);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.shadow-hover:hover {
+  box-shadow: var(--hover-shadow);
+  transform: translateY(-5px);
+}
+
+.device-header {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.device-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.device-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-online {
+  background-color: var(--success-color);
+  box-shadow: 0 0 0 3px rgba(28, 200, 138, 0.3);
+}
+
+.status-offline {
+  background-color: var(--danger-color);
+  box-shadow: 0 0 0 3px rgba(231, 74, 59, 0.3);
+}
+
+.device-body {
+  padding: 1.5rem;
+}
+
+.device-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--dark-color);
+}
+
+.device-info p {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--dark-color);
+}
+
+.device-info i {
+  width: 18px;
+  color: var(--primary-color);
+  margin-right: 0.5rem;
+}
+
+.device-terminals {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(0,0,0,0.1);
+  font-size: 0.9rem;
+  color: var(--dark-color);
+}
+
+.device-terminals i {
+  color: var(--warning-color);
+  margin-right: 0.5rem;
+}
+
+.device-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 设备详情页样式 */
+.device-detail-header {
+  background-color: white;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  padding: 1.5rem 0;
+  margin-bottom: 1.5rem;
+}
+
+.device-title {
+  display: flex;
+  align-items: center;
+}
+
+.device-icon-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-right: 1rem;
+}
+
+.device-info-main h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.device-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.device-type-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.75rem;
+  color: white;
+}
+
+.device-type-router {
+  background-color: var(--primary-color);
+}
+
+.device-type-switch {
+  background-color: var(--success-color);
+}
+
+.device-type-server {
+  background-color: var(--warning-color);
+}
+
+.device-type-wireless {
+  background-color: var(--info-color);
+}
+
+.device-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.75rem;
+}
+
+.status-up, .status-online {
+  background-color: rgba(28, 200, 138, 0.1);
+  color: var(--success-color);
+  border: 1px solid rgba(28, 200, 138, 0.2);
+}
+
+.status-down, .status-offline {
+  background-color: rgba(231, 74, 59, 0.1);
+  color: var(--danger-color);
+  border: 1px solid rgba(231, 74, 59, 0.2);
+}
+
+.device-ip {
+  font-size: 0.875rem;
+  color: var(--dark-color);
+}
+
+/* 信息卡片通用样式 */
+.info-card, .traffic-card, .terminal-card, .alert-card {
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-time);
+  overflow: hidden;
+  height: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.info-card:hover, .traffic-card:hover, .terminal-card:hover, .alert-card:hover {
+  box-shadow: var(--hover-shadow);
+}
+
+.info-card .card-header {
+  background-color: rgba(78, 115, 223, 0.1);
+  border-left: 4px solid var(--primary-color);
+}
+
+.traffic-card .card-header {
+  background-color: rgba(28, 200, 138, 0.1);
+  border-left: 4px solid var(--success-color);
+}
+
+.terminal-card .card-header {
+  background-color: rgba(246, 194, 62, 0.1);
+  border-left: 4px solid var(--warning-color);
+}
+
+.alert-card .card-header {
+  background-color: rgba(231, 74, 59, 0.1);
+  border-left: 4px solid var(--danger-color);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+}
+
+.card-header h6 {
+  font-weight: 600;
+  margin-bottom: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.card-header i {
+  margin-right: 0.5rem;
+}
+
+/* 流量图表容器 */
+.traffic-chart-container {
+  height: 350px;
+  width: 100%;
+}
+
+.traffic-controls {
+  float: right;
+}
+
+/* 流量统计卡片 */
+.traffic-stat {
+  background-color: #f8f9fc;
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  text-align: center;
+  transition: all var(--transition-time);
+}
+
+.traffic-stat:hover {
+  background-color: #eaecf4;
+  transform: translateY(-3px);
+}
+
+.traffic-stat h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--dark-color);
+}
+
+.traffic-stat p {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0;
+  color: #858796;
+}
+
+/* 终端网格 */
+.terminal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.terminal-item {
+  background-color: rgba(0,0,0,0.02);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  transition: all var(--transition-time);
+}
+
+.terminal-item:hover {
+  background-color: rgba(0,0,0,0.04);
+  transform: translateY(-3px);
+}
+
+.terminal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: var(--warning-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-right: 1rem;
+}
+
+.terminal-info h6 {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.terminal-ip, .terminal-mac {
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+  color: var(--dark-color);
+}
+
+.terminal-status {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 50px;
+  display: inline-block;
+}
+
+.terminal-status.status-online {
+  background-color: rgba(28, 200, 138, 0.1);
+  color: var(--success-color);
+  box-shadow: none;
+}
+
+.terminal-status.status-offline {
+  background-color: rgba(231, 74, 59, 0.1);
+  color: var(--danger-color);
+  box-shadow: none;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--dark-color);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  color: rgba(0,0,0,0.1);
+  margin-bottom: 1rem;
+}
+
+/* 接口表格优化 */
+.interface-table-container {
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.interface-table-header {
+  background-color: #f8f9fc;
+  border-bottom: 1px solid #e3e6f0;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.interface-table-header h6 {
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.interface-table-body {
+  padding: 1.5rem;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .device-actions {
+    margin-top: 1rem;
+    text-align: left !important;
+  }
+  
+  .terminal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 动画效果 */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 设备详情页新增样式 */
+.detail-value {
+  font-weight: 500;
+}
+
+.device-description {
+  line-height: 1.6;
+  color: var(--dark-color);
+}
+
+.configuration-item {
+  display: flex;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding-bottom: 0.75rem;
+}
+
+.configuration-item:last-child {
+  border-bottom: none;
+}
+
+.config-label {
+  width: 40%;
+  color: var(--dark-color);
+  font-weight: 500;
+}
+
+.config-value {
+  width: 60%;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.alert-summary {
+  margin-bottom: 1rem;
+}
+
+.alert-count {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.alert-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--danger-color);
+  margin-right: 0.5rem;
+}
+
+.alert-label {
+  color: var(--dark-color);
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+}
+
+.interface-card .table {
+  margin-bottom: 0;
+}
+
+.interface-card .table td, 
+.interface-card .table th {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
+
+.interface-progress {
+  height: 0.6rem;
+  width: 100%;
+  background-color: rgba(0,0,0,0.05);
+}
+
+.interface-progress .progress-bar {
+  font-size: 0.65rem;
+  line-height: 0.6rem;
+  text-align: right;
+  padding-right: 0.25rem;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+.terminal-item {
+  border-radius: var(--border-radius);
+  transition: transform 0.2s;
+}
+
+.terminal-item:hover {
+  transform: translateY(-3px);
+}
+
+.terminal-info h6 {
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terminal-ip i, 
+.terminal-mac i {
+  width: 16px;
+  text-align: center;
+}
+
+/* 数据表格样式优化 */
+.dataTables_info {
+  padding-top: 0.85em;
+}
+
+.dataTables_paginate {
+  padding-top: 0.5em;
+}
+
+.paginate_button {
+  margin: 0 0.2em;
+}
+
+.table-light {
+  background-color: rgba(0,0,0,0.02);
+} 

@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+
+{% block title %}流量监控{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .device-card {
+        transition: transform 0.3s;
+        margin-bottom: 20px;
+        height: 100%;
+    }
+    
+    .device-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .traffic-stat {
+        text-align: center;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+    
+    .traffic-stat h3 {
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
+    
+    .traffic-stat p {
+        margin-bottom: 0;
+        color: #6c757d;
+    }
+    
+    .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .status-up {
+        background-color: #1cc88a;
+    }
+    
+    .status-down {
+        background-color: #e74a3b;
+    }
+    
+    .view-btn {
+        margin-right: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1><i class="fas fa-chart-line"></i> 流量监控</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group mr-2">
+                <button class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+                <a href="{{ url_for('monitor.heatmap') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-fire"></i> 流量热力图
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 总体流量统计 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                总流量</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-traffic">
+                                {{ traffic_summary.total_traffic | default(0) }} GB
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exchange-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                入站流量</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="in-traffic">
+                                {{ traffic_summary.in_traffic | default(0) }} GB
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-arrow-down fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                出站流量</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="out-traffic">
+                                {{ traffic_summary.out_traffic | default(0) }} GB
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-arrow-up fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                平均利用率</div>
+                            <div class="row no-gutters align-items-center">
+                                <div class="col-auto">
+                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800" id="avg-utilization">{{ traffic_summary.avg_utilization | default(0) }}%</div>
+                                </div>
+                                <div class="col">
+                                    <div class="progress progress-sm mr-2">
+                                        <div class="progress-bar bg-warning" role="progressbar" id="utilization-bar"
+                                            style="width: {{ traffic_summary.avg_utilization | default(0) }}%" aria-valuenow="{{ traffic_summary.avg_utilization | default(0) }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-tachometer-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 总体流量趋势图 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">总体流量趋势</h6>
+            <div class="dropdown no-arrow">
+                <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" 
+                   data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" 
+                     aria-labelledby="dropdownMenuLink">
+                    <div class="dropdown-header">时间范围：</div>
+                    <a class="dropdown-item" href="#" data-range="1h">1小时</a>
+                    <a class="dropdown-item" href="#" data-range="6h">6小时</a>
+                    <a class="dropdown-item" href="#" data-range="12h">12小时</a>
+                    <a class="dropdown-item" href="#" data-range="24h">24小时</a>
+                    <a class="dropdown-item" href="#" data-range="7d">7天</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="overall-traffic-chart" style="height: 300px;"></div>
+        </div>
+    </div>
+
+    <!-- 设备流量卡片 -->
+    <h2 class="h3 mb-4 text-gray-800">设备流量</h2>
+    <div class="row">
+        {% for device in devices %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card device-card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        {{ device.name }}
+                        {% if device.status == 'up' %}
+                        <span><span class="status-dot status-up"></span>在线</span>
+                        {% else %}
+                        <span><span class="status-dot status-down"></span>离线</span>
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area mb-4">
+                        <div class="device-chart" id="device-chart-{{ device.id }}" style="height: 160px;"></div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">入站流量</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="device-in-{{ device.id }}">0 Mbps</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">出站流量</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="device-out-{{ device.id }}">0 Mbps</div>
+                        </div>
+                    </div>
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">带宽利用率</div>
+                    <div class="row">
+                        <div class="col">
+                            <div class="progress mb-4">
+                                <div class="progress-bar" role="progressbar" id="device-util-{{ device.id }}"
+                                     style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('monitor.realtime', device_id=device.id) }}" class="btn btn-info view-btn">
+                            <i class="fas fa-chart-area"></i> 实时监控
+                        </a>
+                        <a href="{{ url_for('monitor.history', device_id=device.id) }}" class="btn btn-primary view-btn">
+                            <i class="fas fa-history"></i> 历史数据
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化ECharts图表
+    const overallChart = echarts.init(document.getElementById('overall-traffic-chart'));
+    
+    // 设备图表实例map
+    const deviceCharts = {};
+    
+    // 初始化设备图表
+    {% for device in devices %}
+    deviceCharts[{{ device.id }}] = echarts.init(document.getElementById('device-chart-{{ device.id }}'));
+    {% endfor %}
+    
+    // 模拟数据
+    function generateMockData(hours = 24) {
+        const now = new Date();
+        const data = [];
+        
+        for (let i = hours; i >= 0; i--) {
+            const time = new Date(now);
+            time.setHours(now.getHours() - i);
+            
+            // 高峰时段 (9-12点和14-17点) 流量更高
+            let factor = 1;
+            const hour = time.getHours();
+            if ((hour >= 9 && hour <= 12) || (hour >= 14 && hour <= 17)) {
+                factor = 2;
+            } else if (hour >= 22 || hour <= 5) {
+                factor = 0.5; // 夜间流量较低
+            }
+            
+            const inValue = (Math.random() * 150 + 50) * factor;
+            const outValue = (Math.random() * 100 + 30) * factor;
+            
+            data.push({
+                time: time.toISOString(),
+                in_rate: inValue,
+                out_rate: outValue
+            });
+        }
+        
+        return data;
+    }
+    
+    // 更新总体流量图表
+    function updateOverallChart(data) {
+        const timeData = data.map(item => {
+            const date = new Date(item.time);
+            return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        });
+        
+        const inData = data.map(item => item.in_rate.toFixed(2));
+        const outData = data.map(item => item.out_rate.toFixed(2));
+        
+        const option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#6a7985'
+                    }
+                }
+            },
+            legend: {
+                data: ['入站流量', '出站流量']
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: timeData
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: '{value} Mbps'
+                }
+            },
+            series: [
+                {
+                    name: '入站流量',
+                    type: 'line',
+                    areaStyle: {},
+                    emphasis: {
+                        focus: 'series'
+                    },
+                    data: inData,
+                    smooth: true,
+                    lineStyle: {
+                        width: 2
+                    },
+                    itemStyle: {
+                        color: '#36b9cc'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            {
+                                offset: 0,
+                                color: 'rgba(54, 185, 204, 0.7)'
+                            },
+                            {
+                                offset: 1,
+                                color: 'rgba(54, 185, 204, 0.1)'
+                            }
+                        ])
+                    }
+                },
+                {
+                    name: '出站流量',
+                    type: 'line',
+                    areaStyle: {},
+                    emphasis: {
+                        focus: 'series'
+                    },
+                    data: outData,
+                    smooth: true,
+                    lineStyle: {
+                        width: 2
+                    },
+                    itemStyle: {
+                        color: '#4e73df'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            {
+                                offset: 0,
+                                color: 'rgba(78, 115, 223, 0.7)'
+                            },
+                            {
+                                offset: 1,
+                                color: 'rgba(78, 115, 223, 0.1)'
+                            }
+                        ])
+                    }
+                }
+            ]
+        };
+        
+        overallChart.setOption(option);
+    }
+    
+    // 更新设备图表
+    function updateDeviceChart(deviceId, data) {
+        // 获取最后12个数据点用于设备卡片展示
+        const recentData = data.slice(-12);
+        
+        const timeData = recentData.map(item => {
+            const date = new Date(item.time);
+            return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        });
+        
+        const inData = recentData.map(item => item.in_rate.toFixed(2));
+        const outData = recentData.map(item => item.out_rate.toFixed(2));
+        
+        const option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#6a7985'
+                    }
+                }
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '10%',
+                top: '10%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: timeData,
+                axisLabel: {
+                    fontSize: 10
+                }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: '{value} Mbps',
+                    fontSize: 10
+                }
+            },
+            series: [
+                {
+                    name: '入站流量',
+                    type: 'line',
+                    areaStyle: {},
+                    data: inData,
+                    smooth: true,
+                    lineStyle: {
+                        width: 2
+                    },
+                    itemStyle: {
+                        color: '#36b9cc'
+                    }
+                },
+                {
+                    name: '出站流量',
+                    type: 'line',
+                    areaStyle: {},
+                    data: outData,
+                    smooth: true,
+                    lineStyle: {
+                        width: 2
+                    },
+                    itemStyle: {
+                        color: '#4e73df'
+                    }
+                }
+            ]
+        };
+        
+        deviceCharts[deviceId].setOption(option);
+    }
+    
+    // 更新统计信息
+    function updateStats(data) {
+        // 计算总流量
+        let totalInTraffic = 0;
+        let totalOutTraffic = 0;
+        
+        data.forEach(item => {
+            totalInTraffic += item.in_rate;
+            totalOutTraffic += item.out_rate;
+        });
+        
+        // 计算平均利用率 (假设带宽为1Gbps)
+        const avgUtilization = ((totalInTraffic + totalOutTraffic) / 2 / data.length / 1000) * 100;
+        
+        // 转换为GB
+        const totalInGB = (totalInTraffic * 3600 * 24) / (8 * 1024);
+        const totalOutGB = (totalOutTraffic * 3600 * 24) / (8 * 1024);
+        const totalGB = totalInGB + totalOutGB;
+        
+        // 更新统计卡片
+        document.getElementById('total-traffic').textContent = totalGB.toFixed(2) + ' GB';
+        document.getElementById('in-traffic').textContent = totalInGB.toFixed(2) + ' GB';
+        document.getElementById('out-traffic').textContent = totalOutGB.toFixed(2) + ' GB';
+        document.getElementById('avg-utilization').textContent = avgUtilization.toFixed(1) + '%';
+        
+        // 更新进度条
+        const utilizationBar = document.getElementById('utilization-bar');
+        utilizationBar.style.width = avgUtilization + '%';
+        utilizationBar.setAttribute('aria-valuenow', avgUtilization.toFixed(1));
+    }
+    
+    // 更新设备信息
+    function updateDeviceInfo() {
+        // 对每个设备获取模拟数据
+        {% for device in devices %}
+        const deviceData{{ device.id }} = generateMockData(12);
+        updateDeviceChart({{ device.id }}, deviceData{{ device.id }});
+        
+        // 获取最新的数据点
+        const latestData{{ device.id }} = deviceData{{ device.id }}[deviceData{{ device.id }}.length - 1];
+        
+        // 更新设备卡片的数据
+        document.getElementById('device-in-{{ device.id }}').textContent = latestData{{ device.id }}.in_rate.toFixed(2) + ' Mbps';
+        document.getElementById('device-out-{{ device.id }}').textContent = latestData{{ device.id }}.out_rate.toFixed(2) + ' Mbps';
+        
+        // 计算利用率 (假设带宽为1Gbps)
+        const utilization{{ device.id }} = ((latestData{{ device.id }}.in_rate + latestData{{ device.id }}.out_rate) / 2 / 1000) * 100;
+        const utilBar{{ device.id }} = document.getElementById('device-util-{{ device.id }}');
+        utilBar{{ device.id }}.style.width = utilization{{ device.id }} + '%';
+        utilBar{{ device.id }}.setAttribute('aria-valuenow', utilization{{ device.id }}.toFixed(1));
+        utilBar{{ device.id }}.textContent = utilization{{ device.id }}.toFixed(1) + '%';
+        
+        // 根据利用率设置颜色
+        if (utilization{{ device.id }} < 30) {
+            utilBar{{ device.id }}.className = 'progress-bar bg-success';
+        } else if (utilization{{ device.id }} < 70) {
+            utilBar{{ device.id }}.className = 'progress-bar bg-warning';
+        } else {
+            utilBar{{ device.id }}.className = 'progress-bar bg-danger';
+        }
+        {% endfor %}
+    }
+    
+    // 初始加载
+    const overallData = generateMockData(24);
+    updateOverallChart(overallData);
+    updateStats(overallData);
+    updateDeviceInfo();
+    
+    // 窗口大小改变时重绘图表
+    window.addEventListener('resize', function() {
+        overallChart.resize();
+        
+        {% for device in devices %}
+        deviceCharts[{{ device.id }}].resize();
+        {% endfor %}
+    });
+    
+    // 时间范围选择
+    document.querySelectorAll('[data-range]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const hours = this.getAttribute('data-range').match(/(\d+)([hd])/);
+            let timeRange = 24;
+            
+            if (hours) {
+                if (hours[2] === 'h') {
+                    timeRange = parseInt(hours[1]);
+                } else if (hours[2] === 'd') {
+                    timeRange = parseInt(hours[1]) * 24;
+                }
+            }
+            
+            const newData = generateMockData(timeRange);
+            updateOverallChart(newData);
+            updateStats(newData);
+        });
+    });
+    
+    // 刷新按钮
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+        const overallData = generateMockData(24);
+        updateOverallChart(overallData);
+        updateStats(overallData);
+        updateDeviceInfo();
+    });
+    
+    // 模拟每30秒自动刷新
+    setInterval(function() {
+        updateDeviceInfo();
+    }, 30000);
+});
+</script>
+{% endblock %} 

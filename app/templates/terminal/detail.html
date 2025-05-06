@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}终端设备详情 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-laptop"></i> 终端设备详情</h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 基本信息卡片 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> 基本信息
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th style="width: 150px;">主机名</th>
+                        <td>{{ terminal.hostname }}</td>
+                    </tr>
+                    <tr>
+                        <th>IP地址</th>
+                        <td>{{ terminal.ip_address }}</td>
+                    </tr>
+                    <tr>
+                        <th>MAC地址</th>
+                        <td>{{ terminal.mac_address }}</td>
+                    </tr>
+                    <tr>
+                        <th>设备类型</th>
+                        <td>{{ terminal.device_type }}</td>
+                    </tr>
+                    <tr>
+                        <th>操作系统</th>
+                        <td>{{ terminal.os_type }}</td>
+                    </tr>
+                    <tr>
+                        <th>状态</th>
+                        <td>
+                            <span class="badge bg-{{ 'success' if terminal.status == 'online' else 'danger' }}">
+                                {{ terminal.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>位置</th>
+                        <td>{{ terminal.location }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 连接信息卡片 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-network-wired"></i> 连接信息
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th style="width: 150px;">连接设备</th>
+                        <td>
+                            {% if terminal.connected_device %}
+                            <a href="{{ url_for('device.detail', id=terminal.connected_device.id) }}">
+                                {{ terminal.connected_device.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">未连接</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>端口号</th>
+                        <td>{{ terminal.port_number or '未知' }}</td>
+                    </tr>
+                    <tr>
+                        <th>VLAN ID</th>
+                        <td>{{ terminal.vlan_id or '未知' }}</td>
+                    </tr>
+                    <tr>
+                        <th>连接类型</th>
+                        <td>{{ terminal.connection_type or '未知' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 流量统计卡片 -->
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-chart-line"></i> 流量统计
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">入站流量</h5>
+                                <p class="card-text display-6">{{ (terminal.in_traffic / 1024 / 1024)|round(2) }} MB</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">出站流量</h5>
+                                <p class="card-text display-6">{{ (terminal.out_traffic / 1024 / 1024)|round(2) }} MB</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">带宽使用率</h5>
+                                <p class="card-text display-6">{{ terminal.bandwidth_usage|round(2) }}%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 时间信息卡片 -->
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-clock"></i> 时间信息
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th style="width: 150px;">首次发现</th>
+                        <td>{{ terminal.first_seen.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    <tr>
+                        <th>最后在线</th>
+                        <td>{{ terminal.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    <tr>
+                        <th>创建时间</th>
+                        <td>{{ terminal.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    <tr>
+                        <th>更新时间</th>
+                        <td>{{ terminal.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 操作按钮 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <a href="{{ url_for('terminal.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+                <button class="btn btn-warning edit-terminal" data-id="{{ terminal.id }}" title="编辑设备">
+                    <i class="fas fa-edit"></i> 编辑设备
+                </button>
+                <button class="btn btn-danger delete-terminal" data-id="{{ terminal.id }}" title="删除设备">
+                    <i class="fas fa-trash"></i> 删除设备
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑终端设备模态框 -->
+<div class="modal fade" id="editTerminalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑终端设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTerminalForm">
+                    <input type="hidden" id="terminalId" value="{{ terminal.id }}" aria-label="终端ID">
+                    <div class="mb-3">
+                        <label for="hostname" class="form-label">主机名</label>
+                        <input type="text" class="form-control" id="hostname" value="{{ terminal.hostname }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deviceType" class="form-label">设备类型</label>
+                        <select class="form-select" id="deviceType">
+                            <option value="个人电脑" {% if terminal.device_type == '个人电脑' %}selected{% endif %}>个人电脑</option>
+                            <option value="笔记本电脑" {% if terminal.device_type == '笔记本电脑' %}selected{% endif %}>笔记本电脑</option>
+                            <option value="手机" {% if terminal.device_type == '手机' %}selected{% endif %}>手机</option>
+                            <option value="平板" {% if terminal.device_type == '平板' %}selected{% endif %}>平板</option>
+                            <option value="其他" {% if terminal.device_type == '其他' %}selected{% endif %}>其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="osType" class="form-label">操作系统</label>
+                        <select class="form-select" id="osType">
+                            <option value="Windows" {% if terminal.os_type == 'Windows' %}selected{% endif %}>Windows</option>
+                            <option value="MacOS" {% if terminal.os_type == 'MacOS' %}selected{% endif %}>MacOS</option>
+                            <option value="Linux" {% if terminal.os_type == 'Linux' %}selected{% endif %}>Linux</option>
+                            <option value="Android" {% if terminal.os_type == 'Android' %}selected{% endif %}>Android</option>
+                            <option value="iOS" {% if terminal.os_type == 'iOS' %}selected{% endif %}>iOS</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="connectedDevice" class="form-label">连接设备</label>
+                        <select class="form-select" id="connectedDevice">
+                            <option value="">请选择</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="portNumber" class="form-label">端口号</label>
+                        <input type="text" class="form-control" id="portNumber" value="{{ terminal.port_number }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="vlanId" class="form-label">VLAN ID</label>
+                        <input type="text" class="form-control" id="vlanId" value="{{ terminal.vlan_id }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="connectionType" class="form-label">连接类型</label>
+                        <select class="form-select" id="connectionType">
+                            <option value="有线" {% if terminal.connection_type == '有线' %}selected{% endif %}>有线</option>
+                            <option value="无线" {% if terminal.connection_type == '无线' %}selected{% endif %}>无线</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">位置</label>
+                        <input type="text" class="form-control" id="location" value="{{ terminal.location }}">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveTerminal">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 加载网络设备列表
+    function loadDevices() {
+        $.get("{{ url_for('terminal.api_devices') }}", function(data) {
+            var select = $('#connectedDevice');
+            select.empty().append('<option value="">请选择</option>');
+            var connectedDeviceId = {{ terminal.connected_device_id or 'null' }};
+            data.items.forEach(function(device) {
+                var selected = (device.id === connectedDeviceId) ? 'selected' : '';
+                select.append('<option value="' + device.id + '" ' + selected + '>' + device.name + '</option>');
+            });
+        });
+    }
+    
+    // 编辑终端设备
+    $('.edit-terminal').click(function() {
+        loadDevices();
+        $('#editTerminalModal').modal('show');
+    });
+    
+    // 保存终端设备
+    $('#saveTerminal').click(function() {
+        var id = $('#terminalId').val();
+        var data = {
+            hostname: $('#hostname').val(),
+            device_type: $('#deviceType').val(),
+            os_type: $('#osType').val(),
+            location: $('#location').val(),
+            port_number: $('#portNumber').val(),
+            vlan_id: $('#vlanId').val(),
+            connection_type: $('#connectionType').val(),
+            connected_device_id: $('#connectedDevice').val() || null
+        };
+        
+        $.ajax({
+            url: "{{ url_for('terminal.update_terminal', id=terminal.id) }}",
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                location.reload();
+            },
+            error: function(xhr) {
+                alert('更新失败：' + (xhr.responseJSON ? xhr.responseJSON.error : '未知错误'));
+            }
+        });
+    });
+    
+    // 删除终端设备
+    $('.delete-terminal').click(function() {
+        if (!confirm('确定要删除这个终端设备吗？')) {
+            return;
+        }
+        
+        var id = $(this).data('id');
+        $.ajax({
+            url: "{{ url_for('terminal.delete_terminal', id=terminal.id) }}",
+            type: 'DELETE',
+            success: function(response) {
+                window.location.href = "{{ url_for('terminal.index') }}";
+            },
+            error: function(xhr) {
+                alert('删除失败：' + (xhr.responseJSON ? xhr.responseJSON.error : '未知错误'));
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

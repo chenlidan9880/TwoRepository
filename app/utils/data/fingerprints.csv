@@ -1,0 +1,11 @@
+mac_address,vendor,device_type,os_type,hostname,signature
+00:11:22:33:44:55,Apple,Mobile,iOS,iPhone,Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X)
+AA:BB:CC:DD:EE:FF,Samsung,Mobile,Android,Galaxy,Mozilla/5.0 (Linux; Android 10; SM-G970F)
+11:22:33:44:55:66,Intel,PC,Windows,Desktop-PC,Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+22:33:44:55:66:77,Dell,PC,Windows,Laptop,Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+33:44:55:66:77:88,Apple,PC,macOS,MacBook,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)
+44:55:66:77:88:99,Xiaomi,Mobile,Android,Redmi,Mozilla/5.0 (Linux; Android 11; Redmi Note 8)
+55:66:77:88:99:AA,Huawei,Mobile,Android,Huawei,Mozilla/5.0 (Linux; Android 9; HUAWEI P30)
+66:77:88:99:AA:BB,Cisco,Network,IOS,Switch,?
+77:88:99:AA:BB:CC,Lenovo,PC,Windows,ThinkPad,Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+88:99:AA:BB:CC:DD,Google,Mobile,Android,Pixel,Mozilla/5.0 (Linux; Android 12; Pixel 6) 

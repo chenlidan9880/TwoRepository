@@ -1,0 +1,935 @@
+{% extends 'base.html' %}
+
+{% block title %}高级仪表盘 - {{ super() }}{% endblock %}
+
+{% block head %}
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+    }
+    .dashboard-card .card-header {
+        background: linear-gradient(to right, #667eea, #764ba2);
+        color: white;
+        border-radius: 10px 10px 0 0;
+        padding: 15px;
+    }
+    .dashboard-card .card-body {
+        padding: 20px;
+    }
+    .stat-card {
+        border-radius: 10px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+    }
+    .stat-card .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .stat-card .stat-title {
+        font-size: 1rem;
+        opacity: 0.8;
+    }
+    .stat-device {
+        background: linear-gradient(to right, #11998e, #38ef7d);
+    }
+    .stat-terminal {
+        background: linear-gradient(to right, #2193b0, #6dd5ed);
+    }
+    .stat-alert {
+        background: linear-gradient(to right, #eb3349, #f45c43);
+    }
+    .stat-traffic {
+        background: linear-gradient(to right, #4e54c8, #8f94fb);
+    }
+    .chart-container {
+        height: 300px;
+        width: 100%;
+    }
+    .table-container {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .filter-controls {
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+    }
+    .filter-group {
+        margin-bottom: 10px;
+    }
+    .filter-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .progress-title {
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .progress {
+        margin-bottom: 15px;
+        height: 15px;
+    }
+    .terminal-table th, .terminal-table td {
+        vertical-align: middle;
+    }
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 10px;
+    }
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-tachometer-alt"></i> 高级仪表盘</h1>
+    </div>
+</div>
+
+<!-- 过滤器控件 -->
+<div class="filter-controls mb-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="filter-group">
+                <div class="filter-label">时间范围</div>
+                <select id="time-range" class="form-select" aria-label="选择时间范围">
+                    <option value="hour">过去1小时</option>
+                    <option value="day" selected>过去24小时</option>
+                    <option value="week">过去7天</option>
+                    <option value="month">过去30天</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="filter-group">
+                <div class="filter-label">设备</div>
+                <select id="device-filter" class="form-select" aria-label="选择设备过滤器">
+                    <option value="all" selected>所有设备</option>
+                    <!-- 动态加载设备选项 -->
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="filter-group">
+                <div class="filter-label">位置</div>
+                <select id="location-filter" class="form-select" aria-label="选择位置过滤器">
+                    <option value="all" selected>所有位置</option>
+                    <!-- 动态加载位置选项 -->
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="filter-group">
+                <div class="filter-label">刷新频率</div>
+                <select id="refresh-rate" class="form-select" aria-label="选择数据刷新频率">
+                    <option value="0">手动刷新</option>
+                    <option value="30" selected>30秒</option>
+                    <option value="60">1分钟</option>
+                    <option value="300">5分钟</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-12 text-end">
+            <button id="refresh-btn" class="btn btn-primary">
+                <i class="fas fa-sync-alt"></i> 立即刷新
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row mb-4" id="stats-cards-container">
+    <div class="col-md-3">
+        <div class="stat-card stat-device">
+            <div class="stat-icon"><i class="fas fa-server"></i></div>
+            <div class="stat-value" id="device-count">--</div>
+            <div class="stat-title">网络设备</div>
+            <div class="mt-2 small">在线: <span id="online-device-count">--</span></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card stat-terminal">
+            <div class="stat-icon"><i class="fas fa-laptop"></i></div>
+            <div class="stat-value" id="terminal-count">--</div>
+            <div class="stat-title">终端设备</div>
+            <div class="mt-2 small">活跃: <span id="active-terminal-count">--</span></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card stat-alert">
+            <div class="stat-icon"><i class="fas fa-bell"></i></div>
+            <div class="stat-value" id="alert-count">--</div>
+            <div class="stat-title">安全告警</div>
+            <div class="mt-2 small">严重: <span id="critical-alert-count">--</span></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card stat-traffic">
+            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="stat-value" id="traffic-count">--</div>
+            <div class="stat-title">流量记录</div>
+            <div class="mt-2 small">过去24小时</div>
+        </div>
+    </div>
+</div>
+
+<!-- 流量趋势图 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-area"></i> 流量趋势分析</h5>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-light" data-time-range="hour">小时</button>
+                    <button class="btn btn-sm btn-outline-light active" data-time-range="day">天</button>
+                    <button class="btn btn-sm btn-outline-light" data-time-range="week">周</button>
+                    <button class="btn btn-sm btn-outline-light" data-time-range="month">月</button>
+                </div>
+            </div>
+            <div class="card-body position-relative">
+                <div class="loading-overlay" id="traffic-chart-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+                <div id="traffic-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 区域统计和流量热点 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-map-marker-alt"></i> 区域流量分布</h5>
+            </div>
+            <div class="card-body position-relative">
+                <div class="loading-overlay" id="location-chart-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+                <div id="location-chart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-fire"></i> 流量热点</h5>
+            </div>
+            <div class="card-body position-relative">
+                <div class="loading-overlay" id="hotspot-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+                <div id="traffic-hotspots">
+                    <!-- 流量热点信息 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 顶部流量终端和设备类型分布 -->
+<div class="row mb-4">
+    <div class="col-md-7">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-laptop"></i> 流量最高的终端设备</h5>
+            </div>
+            <div class="card-body position-relative">
+                <div class="loading-overlay" id="terminals-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="table table-hover terminal-table">
+                        <thead>
+                            <tr>
+                                <th>主机名</th>
+                                <th>IP地址</th>
+                                <th>设备类型</th>
+                                <th>入站流量</th>
+                                <th>出站流量</th>
+                                <th>位置</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-terminals-table">
+                            <!-- 顶部终端数据将在这里动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> 设备类型分布</h5>
+            </div>
+            <div class="card-body position-relative">
+                <div class="loading-overlay" id="device-pie-loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-6">
+                        <div id="device-type-chart" style="height: 200px;"></div>
+                    </div>
+                    <div class="col-6">
+                        <div id="terminal-type-chart" style="height: 200px;"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <p class="text-muted text-center">设备和终端类型占比分布</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 全局变量
+    let refreshInterval;
+    let trafficChart;
+    let locationChart;
+    let deviceTypeChart;
+    let terminalTypeChart;
+    
+    $(document).ready(function() {
+        // 初始化图表
+        initCharts();
+        
+        // 加载初始数据
+        loadAllData();
+        
+        // 设置刷新间隔
+        setupRefreshInterval();
+        
+        // 绑定事件处理器
+        bindEventHandlers();
+    });
+    
+    function initCharts() {
+        // 初始化流量趋势图
+        trafficChart = echarts.init(document.getElementById('traffic-chart'));
+        trafficChart.setOption({
+            title: {
+                text: '网络流量趋势',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    let result = params[0].name + '<br/>';
+                    params.forEach(param => {
+                        let value = (param.value / 1000000).toFixed(2);
+                        result += `${param.marker} ${param.seriesName}: ${value} Mbps<br/>`;
+                    });
+                    return result;
+                }
+            },
+            legend: {
+                data: ['入站流量', '出站流量'],
+                bottom: 10
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                top: '15%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: []
+            },
+            yAxis: {
+                type: 'value',
+                name: '流量 (Mbps)',
+                axisLabel: {
+                    formatter: function(value) {
+                        return (value / 1000000).toFixed(1);
+                    }
+                }
+            },
+            series: [
+                {
+                    name: '入站流量',
+                    type: 'line',
+                    smooth: true,
+                    data: [],
+                    lineStyle: {
+                        width: 3,
+                        color: '#3498db'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(52, 152, 219, 0.5)' },
+                            { offset: 1, color: 'rgba(52, 152, 219, 0.1)' }
+                        ])
+                    }
+                },
+                {
+                    name: '出站流量',
+                    type: 'line',
+                    smooth: true,
+                    data: [],
+                    lineStyle: {
+                        width: 3,
+                        color: '#e74c3c'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(231, 76, 60, 0.5)' },
+                            { offset: 1, color: 'rgba(231, 76, 60, 0.1)' }
+                        ])
+                    }
+                }
+            ]
+        });
+        
+        // 初始化区域流量分布图
+        locationChart = echarts.init(document.getElementById('location-chart'));
+        locationChart.setOption({
+            title: {
+                text: '区域流量分布',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                },
+                formatter: function(params) {
+                    let result = params[0].name + '<br/>';
+                    params.forEach(param => {
+                        let value = param.value;
+                        result += `${param.marker} ${param.seriesName}: ${value} Mbps<br/>`;
+                    });
+                    return result;
+                }
+            },
+            legend: {
+                data: ['入站流量', '出站流量'],
+                bottom: 10
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                top: '15%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: []
+            },
+            yAxis: {
+                type: 'value',
+                name: '流量 (Mbps)'
+            },
+            series: [
+                {
+                    name: '入站流量',
+                    type: 'bar',
+                    data: [],
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#3498db' },
+                            { offset: 1, color: '#2980b9' }
+                        ])
+                    }
+                },
+                {
+                    name: '出站流量',
+                    type: 'bar',
+                    data: [],
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#e74c3c' },
+                            { offset: 1, color: '#c0392b' }
+                        ])
+                    }
+                }
+            ]
+        });
+        
+        // 初始化设备类型饼图
+        deviceTypeChart = echarts.init(document.getElementById('device-type-chart'));
+        deviceTypeChart.setOption({
+            title: {
+                text: '设备类型',
+                left: 'center',
+                top: 0,
+                textStyle: {
+                    fontSize: 14
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                show: false
+            },
+            series: [
+                {
+                    name: '设备类型',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '12',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: []
+                }
+            ]
+        });
+        
+        // 初始化终端类型饼图
+        terminalTypeChart = echarts.init(document.getElementById('terminal-type-chart'));
+        terminalTypeChart.setOption({
+            title: {
+                text: '终端类型',
+                left: 'center',
+                top: 0,
+                textStyle: {
+                    fontSize: 14
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                show: false
+            },
+            series: [
+                {
+                    name: '终端类型',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '12',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: []
+                }
+            ]
+        });
+        
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            trafficChart.resize();
+            locationChart.resize();
+            deviceTypeChart.resize();
+            terminalTypeChart.resize();
+        });
+    }
+    
+    function loadAllData() {
+        // 显示加载动画
+        $('.loading-overlay').show();
+        
+        // 加载基本统计数据
+        loadStatistics();
+        
+        // 加载流量趋势数据
+        loadTrafficTrend();
+        
+        // 加载区域统计数据
+        loadLocationStatistics();
+        
+        // 加载顶部终端数据
+        loadTopTerminals();
+    }
+    
+    function loadStatistics() {
+        $.ajax({
+            url: '/dashboard/api/statistics',
+            method: 'GET',
+            success: function(data) {
+                // 更新统计卡片
+                $('#device-count').text(data.device.total);
+                $('#online-device-count').text(data.device.online);
+                $('#terminal-count').text(data.terminal.total);
+                $('#active-terminal-count').text(data.terminal.active);
+                $('#alert-count').text(data.alert.total);
+                $('#critical-alert-count').text(data.alert.critical);
+                $('#traffic-count').text(data.traffic.last_24h);
+                
+                // 更新设备类型饼图
+                deviceTypeChart.setOption({
+                    series: [{
+                        data: [
+                            {
+                                value: data.device.types.find(t => t.name === 'router')?.value || 0, 
+                                name: '路由器',
+                                itemStyle: { color: '#e74c3c' }
+                            },
+                            {
+                                value: data.device.types.find(t => t.name === 'switch')?.value || 0, 
+                                name: '交换机',
+                                itemStyle: { color: '#3498db' }
+                            },
+                            {
+                                value: data.device.types.find(t => t.name === 'wireless')?.value || 0, 
+                                name: '无线AP',
+                                itemStyle: { color: '#2ecc71' }
+                            }
+                        ]
+                    }]
+                });
+                
+                // 更新终端类型饼图
+                terminalTypeChart.setOption({
+                    series: [{
+                        data: [
+                            {
+                                value: data.terminal.types.find(t => t.name === 'PC')?.value || 0, 
+                                name: 'PC设备',
+                                itemStyle: { color: '#f39c12' }
+                            },
+                            {
+                                value: data.terminal.types.find(t => t.name === 'Mobile')?.value || 0, 
+                                name: '移动设备',
+                                itemStyle: { color: '#9b59b6' }
+                            },
+                            {
+                                value: data.terminal.types.find(t => t.name === 'IoT')?.value || 0, 
+                                name: 'IoT设备',
+                                itemStyle: { color: '#1abc9c' }
+                            }
+                        ]
+                    }]
+                });
+                
+                // 隐藏加载动画
+                $('#device-pie-loading').hide();
+            },
+            error: function(error) {
+                console.error('加载统计数据失败:', error);
+                $('#device-pie-loading').hide();
+            }
+        });
+    }
+    
+    function loadTrafficTrend() {
+        // 获取时间范围
+        let timeRange = $('#time-range').val();
+        let deviceId = $('#device-filter').val();
+        if (deviceId === 'all') {
+            deviceId = null;
+        }
+        
+        $.ajax({
+            url: '/dashboard/api/traffic-trend',
+            method: 'GET',
+            data: {
+                range: timeRange,
+                device_id: deviceId
+            },
+            success: function(data) {
+                // 准备数据
+                let times = data.map(item => item.time);
+                let inRates = data.map(item => item.in_rate);
+                let outRates = data.map(item => item.out_rate);
+                
+                // 更新图表
+                trafficChart.setOption({
+                    xAxis: {
+                        data: times
+                    },
+                    series: [
+                        {
+                            name: '入站流量',
+                            data: inRates
+                        },
+                        {
+                            name: '出站流量',
+                            data: outRates
+                        }
+                    ]
+                });
+                
+                // 隐藏加载动画
+                $('#traffic-chart-loading').hide();
+            },
+            error: function(error) {
+                console.error('加载流量趋势数据失败:', error);
+                $('#traffic-chart-loading').hide();
+            }
+        });
+    }
+    
+    function loadLocationStatistics() {
+        $.ajax({
+            url: '/dashboard/api/location-statistics',
+            method: 'GET',
+            success: function(data) {
+                // 准备数据
+                let locations = data.map(item => item.location);
+                let inTraffic = data.map(item => item.in_traffic);
+                let outTraffic = data.map(item => item.out_traffic);
+                
+                // 更新区域流量图表
+                locationChart.setOption({
+                    xAxis: {
+                        data: locations
+                    },
+                    series: [
+                        {
+                            name: '入站流量',
+                            data: inTraffic
+                        },
+                        {
+                            name: '出站流量',
+                            data: outTraffic
+                        }
+                    ]
+                });
+                
+                // 更新流量热点
+                let hotspotHtml = '';
+                data.sort((a, b) => b.in_traffic + b.out_traffic - (a.in_traffic + a.out_traffic))
+                    .slice(0, 5)
+                    .forEach(location => {
+                        let totalTraffic = location.in_traffic + location.out_traffic;
+                        let inPercent = Math.round((location.in_traffic / totalTraffic) * 100);
+                        let outPercent = 100 - inPercent;
+                        
+                        hotspotHtml += `
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <div class="progress-title">${location.location}</div>
+                                    <div class="text-muted small">${totalTraffic} Mbps</div>
+                                </div>
+                                <div class="progress-title small">
+                                    入站: ${location.in_traffic} Mbps (${inPercent}%)
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                        style="width: ${inPercent}%" aria-valuenow="${inPercent}" 
+                                        aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="progress-title small">
+                                    出站: ${location.out_traffic} Mbps (${outPercent}%)
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-danger" role="progressbar" 
+                                        style="width: ${outPercent}%" aria-valuenow="${outPercent}" 
+                                        aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="mt-1 text-muted small">
+                                    设备: ${location.device_count} | 终端: ${location.terminal_count}
+                                </div>
+                            </div>
+                        `;
+                    });
+                
+                $('#traffic-hotspots').html(hotspotHtml);
+                
+                // 隐藏加载动画
+                $('#location-chart-loading, #hotspot-loading').hide();
+                
+                // 更新位置过滤选项
+                let locationOptions = '<option value="all" selected>所有位置</option>';
+                locations.forEach(location => {
+                    locationOptions += `<option value="${location}">${location}</option>`;
+                });
+                $('#location-filter').html(locationOptions);
+            },
+            error: function(error) {
+                console.error('加载区域统计数据失败:', error);
+                $('#location-chart-loading, #hotspot-loading').hide();
+            }
+        });
+    }
+    
+    function loadTopTerminals() {
+        $.ajax({
+            url: '/dashboard/api/top-terminals',
+            method: 'GET',
+            data: {
+                limit: 10
+            },
+            success: function(data) {
+                let tableHtml = '';
+                
+                // 生成表格行
+                data.forEach(terminal => {
+                    // 格式化流量显示
+                    let inTrafficDisplay = formatBytesToReadable(terminal.in_traffic);
+                    let outTrafficDisplay = formatBytesToReadable(terminal.out_traffic);
+                    
+                    // 设备类型图标
+                    let deviceIcon;
+                    if (terminal.device_type === 'PC') {
+                        deviceIcon = '<i class="fas fa-desktop"></i>';
+                    } else if (terminal.device_type === 'Mobile') {
+                        deviceIcon = '<i class="fas fa-mobile-alt"></i>';
+                    } else {
+                        deviceIcon = '<i class="fas fa-microchip"></i>';
+                    }
+                    
+                    tableHtml += `
+                        <tr>
+                            <td>${terminal.hostname}</td>
+                            <td>${terminal.ip_address}</td>
+                            <td>${deviceIcon} ${terminal.device_type} (${terminal.os_type})</td>
+                            <td>${inTrafficDisplay}</td>
+                            <td>${outTrafficDisplay}</td>
+                            <td>${terminal.location}</td>
+                        </tr>
+                    `;
+                });
+                
+                // 更新表格
+                $('#top-terminals-table').html(tableHtml);
+                
+                // 隐藏加载动画
+                $('#terminals-loading').hide();
+            },
+            error: function(error) {
+                console.error('加载顶部终端数据失败:', error);
+                $('#terminals-loading').hide();
+            }
+        });
+    }
+    
+    function formatBytesToReadable(bytes) {
+        if (bytes < 1024) {
+            return bytes + ' B';
+        } else if (bytes < 1024 * 1024) {
+            return (bytes / 1024).toFixed(2) + ' KB';
+        } else if (bytes < 1024 * 1024 * 1024) {
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        } else {
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+    }
+    
+    function setupRefreshInterval() {
+        // 清除现有定时器
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+        
+        // 获取刷新间隔
+        let refreshRate = parseInt($('#refresh-rate').val());
+        
+        // 设置新的定时器
+        if (refreshRate > 0) {
+            refreshInterval = setInterval(loadAllData, refreshRate * 1000);
+        }
+    }
+    
+    function bindEventHandlers() {
+        // 刷新按钮点击事件
+        $('#refresh-btn').click(function() {
+            loadAllData();
+        });
+        
+        // 刷新频率更改事件
+        $('#refresh-rate').change(function() {
+            setupRefreshInterval();
+        });
+        
+        // 时间范围更改事件
+        $('#time-range, #device-filter, #location-filter').change(function() {
+            loadTrafficTrend();
+        });
+        
+        // 流量图表时间范围按钮点击事件
+        $('.card-header .btn-group .btn').click(function() {
+            // 切换激活按钮
+            $('.card-header .btn-group .btn').removeClass('active');
+            $(this).addClass('active');
+            
+            // 设置时间范围并刷新数据
+            let timeRange = $(this).data('time-range');
+            $('#time-range').val(timeRange);
+            loadTrafficTrend();
+        });
+    }
+</script>
+{% endblock %} 

@@ -1,0 +1,896 @@
+{% extends 'base.html' %}
+
+{% block title %}流量热力图{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .heatmap-container {
+        height: 600px;
+        margin-bottom: 20px;
+    }
+    
+    .info-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #4e73df;
+    }
+    
+    .traffic-detail {
+        display: none;
+        transition: all 0.3s ease;
+    }
+    
+    .device-info {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .traffic-stat {
+        text-align: center;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        background-color: #fff;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .traffic-stat h3 {
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
+    
+    .traffic-stat p {
+        margin-bottom: 0;
+        color: #6c757d;
+    }
+    
+    .chart-container {
+        height: 300px;
+        margin-top: 20px;
+    }
+    
+    .legend-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-right: 20px;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        border-radius: 3px;
+    }
+    
+    .color-low {
+        background-color: #91cc75;
+    }
+    
+    .color-medium {
+        background-color: #fac858;
+    }
+    
+    .color-high {
+        background-color: #ee6666;
+    }
+    
+    .device-name {
+        font-weight: 600;
+        margin-bottom: 10px;
+        font-size: 1.2rem;
+    }
+    
+    .refresh-btn {
+        transition: transform 0.3s;
+    }
+    
+    .refresh-btn:hover {
+        transform: rotate(180deg);
+    }
+    
+    .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1><i class="fas fa-fire"></i> 流量热力图</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group mr-2">
+                <button id="refresh-heatmap" class="btn btn-sm btn-outline-secondary refresh-btn">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+                <button id="refresh-cache" class="btn btn-sm btn-outline-warning">
+                    <i class="fas fa-database"></i> 刷新缓存
+                </button>
+                <a href="{{ url_for('monitor.index') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-chart-line"></i> 流量监控
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">设备流量热力图</h6>
+                </div>
+                <div class="card-body">
+                    <div class="legend-container">
+                        <div class="d-flex">
+                            <div class="legend-item">
+                                <div class="legend-color color-low"></div>
+                                <span>低负载 (0-30%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color color-medium"></div>
+                                <span>中负载 (30-70%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color color-high"></div>
+                                <span>高负载 (70-100%)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-muted">点击设备查看详情</span>
+                        </div>
+                    </div>
+                    <div id="heatmap-container" class="heatmap-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备流量详情（点击热力图显示） -->
+    <div id="traffic-detail" class="row traffic-detail">
+        <div class="col-md-12">
+            <div class="card shadow info-card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle"></i> <span id="device-title">设备流量详情</span></h6>
+                    <button class="btn btn-sm btn-link close-btn" id="close-detail">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="device-info">
+                                <div class="device-name" id="detail-device-name"></div>
+                                <div class="row mb-2">
+                                    <div class="col-md-4 detail-label">IP地址：</div>
+                                    <div class="col-md-8" id="detail-ip"></div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-md-4 detail-label">位置：</div>
+                                    <div class="col-md-8" id="detail-location"></div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-md-4 detail-label">状态：</div>
+                                    <div class="col-md-8" id="detail-status"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="traffic-stat">
+                                        <h3 id="detail-in-traffic">0 Mbps</h3>
+                                        <p>入站流量</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="traffic-stat">
+                                        <h3 id="detail-out-traffic">0 Mbps</h3>
+                                        <p>出站流量</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="traffic-stat">
+                                        <h3 id="detail-utilization">0%</h3>
+                                        <p>带宽利用率</p>
+                                        <div class="progress mt-2">
+                                            <div class="progress-bar" id="detail-utilization-bar" role="progressbar" style="width: 0%"
+                                                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="chart-container" id="detail-chart"></div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12 text-center">
+                            <a id="view-realtime" href="#" class="btn btn-info mr-2">
+                                <i class="fas fa-chart-area"></i> 实时监控
+                            </a>
+                            <a id="view-history" href="#" class="btn btn-primary">
+                                <i class="fas fa-history"></i> 历史数据
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 生成字符串哈希值的函数
+    function hashCode(str) {
+        var hash = 0;
+        if (str.length === 0) return hash;
+        for (var i = 0; i < str.length; i++) {
+            var char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // 转换为32位整数
+        }
+        return hash;
+    }
+    
+    $(document).ready(function() {
+        // 初始化热力图
+        var heatmapChart = echarts.init(document.getElementById('heatmap-container'));
+        
+        // 显示加载动画
+        heatmapChart.showLoading();
+        
+        // 加载热力图数据
+        $.ajax({
+            url: "{{ url_for('monitor.api_heatmap') }}",
+            type: "GET",
+            dataType: "json",
+            success: function(data) {
+                // 隐藏加载动画
+                heatmapChart.hideLoading();
+                
+                // 如果没有数据，显示提示信息
+                if (!data || data.length === 0) {
+                    heatmapChart.setOption({
+                        title: {
+                            text: '网络流量热力图',
+                            left: 'center',
+                            textStyle: {
+                                fontSize: 16
+                            }
+                        },
+                        graphic: {
+                            type: 'text',
+                            left: 'center',
+                            top: 'middle',
+                            style: {
+                                text: '暂无流量数据',
+                                fontSize: 20,
+                                fill: '#999'
+                            }
+                        }
+                    });
+                    return;
+                }
+                
+                // 生成热力图数据
+                var xAxis = [];
+                var yAxis = [];
+                var points = [];
+                
+                // 创建10x10的网格
+                for (var i = 0; i < 10; i++) {
+                    xAxis.push('位置' + i);
+                    yAxis.push('位置' + i);
+                }
+                
+                // 为每个设备生成一个固定位置(基于设备ID)和流量值
+                for (var i = 0; i < data.length; i++) {
+                    // 使用设备ID和名称的哈希值来确定固定位置，这样每次刷新位置都相同
+                    var deviceId = data[i].id || i;
+                    var deviceInfo = deviceId.toString() + (data[i].name || "");
+                    var hashValue = Math.abs(hashCode(deviceInfo));
+                    
+                    // 优化分布算法，使用质数做除数获得更均匀的分布
+                    var x = (hashValue % 17) % 10;  // 使用质数17
+                    var y = (Math.floor(hashValue / 23) % 10);  // 使用质数23
+                    
+                    // 使用后端提供的流量使用率值
+                    var value = data[i].value;
+                    // 确保value有值且为数字类型
+                    if (value === undefined || value === null) {
+                        console.warn("设备 " + data[i].name + " 没有流量使用率数据");
+                        // 不再随机生成数据，设置为0，表示无数据
+                        value = 0;
+                    } else {
+                        // 确保value是数字类型
+                        value = parseFloat(value);
+                        // 确保value在0-100范围内
+                        if (isNaN(value) || value < 0) {
+                            console.warn("设备 " + data[i].name + " 的流量使用率值无效: " + data[i].value);
+                            value = 0;
+                        } else if (value > 100) {
+                            console.warn("设备 " + data[i].name + " 的流量使用率值超出范围: " + value);
+                            value = 100;
+                        }
+                        console.info("设备 " + data[i].name + " 流量使用率: " + value);
+                    }
+                    
+                    // 打印每个设备的负载信息，帮助调试
+                    var loadLevel = value < 30 ? "低负载" : (value < 70 ? "中负载" : "高负载");
+                    console.debug("设备: " + data[i].name + ", 流量使用率: " + value.toFixed(2) + "% (" + loadLevel + ")");
+                    
+                    points.push([x, y, value, data[i].id]);
+                }
+                
+                // 配置热力图
+                var option = {
+                    title: {
+                        text: '网络流量热力图',
+                        left: 'center'
+                    },
+                    tooltip: {
+                        position: 'top',
+                        formatter: function(params) {
+                            var deviceData = data.find(function(item) {
+                                return item.id === params.value[3];
+                            });
+                            
+                            // 确定负载级别的显示文本和颜色
+                            var loadLevel = "";
+                            var loadColor = "";
+                            var value = params.value[2];
+                            
+                            if (value < 30) {
+                                loadLevel = "低负载";
+                                loadColor = "#91cc75";
+                            } else if (value < 70) {
+                                loadLevel = "中负载";
+                                loadColor = "#fac858";
+                            } else {
+                                loadLevel = "高负载";
+                                loadColor = "#ee6666";
+                            }
+                            
+                            if (deviceData) {
+                                return '设备: ' + deviceData.name + '<br>' +
+                                       'IP: ' + deviceData.ip + '<br>' +
+                                       '位置: ' + deviceData.location + '<br>' +
+                                       '入站流量: ' + deviceData.in_rate.toFixed(2) + ' Mbps<br>' +
+                                       '出站流量: ' + deviceData.out_rate.toFixed(2) + ' Mbps<br>' +
+                                       '<span style="color:' + loadColor + '">流量使用率: ' + value.toFixed(2) + '% (' + loadLevel + ')</span>';
+                            } else {
+                                return '位置: (' + params.value[0] + ', ' + params.value[1] + ')<br>' +
+                                       '流量使用率: ' + params.value[2].toFixed(2) + '%';
+                            }
+                        }
+                    },
+                    grid: {
+                        top: '15%',
+                        bottom: '10%',
+                        left: '5%',
+                        right: '5%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: xAxis,
+                        splitArea: {
+                            show: true
+                        }
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: yAxis,
+                        splitArea: {
+                            show: true
+                        }
+                    },
+                    visualMap: {
+                        type: 'piecewise', // 使用分段型视觉映射组件
+                        min: 0,
+                        max: 100,
+                        dimension: 2, // 明确指定映射到数组的第三个值（流量使用率）
+                        precision: 0, // 精度
+                        calculable: true,
+                        orient: 'horizontal',
+                        left: 'center',
+                        bottom: '0%',
+                        pieces: [
+                            {min: 0, max: 30, color: '#91cc75'},  // 低负载 - 绿色
+                            {min: 30, max: 70, color: '#fac858'}, // 中负载 - 橙色
+                            {min: 70, max: 100, color: '#ee6666'} // 高负载 - 红色
+                        ],
+                        textStyle: {
+                            color: '#333'
+                        },
+                        // 显示分段连续使用文本
+                        formatter: function (value) {
+                            if (value <= 30) return '低负载';
+                            if (value <= 70) return '中负载';
+                            return '高负载';
+                        },
+                        inRange: {
+                            color: ['#91cc75', '#fac858', '#ee6666']
+                        }
+                    },
+                    series: [{
+                        name: '流量使用率',
+                        type: 'heatmap',
+                        data: points,
+                        label: {
+                            show: false
+                        },
+                        // 增强热力图视觉效果
+                        itemStyle: {
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1
+                        },
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        }
+                    }]
+                };
+                
+                // 添加调试日志，检查数据分布
+                console.log("热力图数据分布统计:");
+                var lowLoad = 0, mediumLoad = 0, highLoad = 0;
+                for (var i = 0; i < points.length; i++) {
+                    var val = points[i][2];
+                    if (val < 30) lowLoad++;
+                    else if (val < 70) mediumLoad++;
+                    else highLoad++;
+                }
+                console.log("低负载(0-30%): " + lowLoad + " 个设备");
+                console.log("中负载(30-70%): " + mediumLoad + " 个设备");
+                console.log("高负载(70-100%): " + highLoad + " 个设备");
+                
+                // 使用配置项显示热力图
+                heatmapChart.setOption(option);
+                
+                // 点击热力图显示设备详情
+                heatmapChart.on('click', function(params) {
+                    var deviceData = data.find(function(item) {
+                        return item.id === params.value[3];
+                    });
+                    
+                    if (deviceData) {
+                        // 显示设备详情
+                        showDeviceDetail(deviceData);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                // 隐藏加载动画
+                heatmapChart.hideLoading();
+                
+                // 显示错误信息
+                heatmapChart.setOption({
+                    title: {
+                        text: '网络流量热力图',
+                        left: 'center',
+                        textStyle: {
+                            fontSize: 16
+                        }
+                    },
+                    graphic: {
+                        type: 'text',
+                        left: 'center',
+                        top: 'middle',
+                        style: {
+                            text: '加载数据失败: ' + error,
+                            fontSize: 14,
+                            fill: '#f5222d'
+                        }
+                    }
+                });
+                
+                console.error("获取热力图数据失败:", error);
+            }
+        });
+        
+        // 窗口大小变化时，重新调整ECharts大小
+        $(window).resize(function() {
+            heatmapChart.resize();
+        });
+        
+        // 每30秒刷新一次数据
+        setInterval(function() {
+            heatmapChart.showLoading();
+            $.getJSON("{{ url_for('monitor.api_heatmap') }}", function(data) {
+                heatmapChart.hideLoading();
+                updateHeatmap(heatmapChart, data);
+            }).fail(function(xhr, status, error) {
+                heatmapChart.hideLoading();
+                console.error("刷新热力图数据失败:", error);
+            });
+        }, 30000);
+        
+        // 更新热力图数据
+        function updateHeatmap(chart, data) {
+            if (!data || data.length === 0) {
+                return;
+            }
+            
+            var points = [];
+            
+            // 为每个设备生成一个固定位置(基于设备ID)和流量值
+            for (var i = 0; i < data.length; i++) {
+                // 使用设备ID和名称的哈希值来确定固定位置，这样每次刷新位置都相同
+                var deviceId = data[i].id || i;
+                var deviceInfo = deviceId.toString() + (data[i].name || "");
+                var hashValue = Math.abs(hashCode(deviceInfo));
+                
+                // 优化分布算法，使用质数做除数获得更均匀的分布
+                var x = (hashValue % 17) % 10;  // 使用质数17
+                var y = (Math.floor(hashValue / 23) % 10);  // 使用质数23
+                
+                // 使用后端提供的流量使用率值
+                var value = data[i].value;
+                // 确保value有值且为数字类型
+                if (value === undefined || value === null) {
+                    console.warn("设备 " + data[i].name + " 没有流量使用率数据");
+                    // 不再随机生成数据，设置为0，表示无数据
+                    value = 0;
+                } else {
+                    // 确保value是数字类型
+                    value = parseFloat(value);
+                    // 确保value在0-100范围内
+                    if (isNaN(value) || value < 0) {
+                        console.warn("设备 " + data[i].name + " 的流量使用率值无效: " + data[i].value);
+                        value = 0;
+                    } else if (value > 100) {
+                        console.warn("设备 " + data[i].name + " 的流量使用率值超出范围: " + value);
+                        value = 100;
+                    }
+                    console.info("设备 " + data[i].name + " 流量使用率: " + value);
+                }
+                
+                // 打印每个设备的负载信息，帮助调试
+                var loadLevel = value < 30 ? "低负载" : (value < 70 ? "中负载" : "高负载");
+                console.debug("设备: " + data[i].name + ", 流量使用率: " + value.toFixed(2) + "% (" + loadLevel + ")");
+                
+                points.push([x, y, value, data[i].id]);
+            }
+            
+            // 添加调试日志，检查数据分布
+            var lowLoad = 0, mediumLoad = 0, highLoad = 0;
+            for (var i = 0; i < points.length; i++) {
+                var val = points[i][2];
+                if (val < 30) lowLoad++;
+                else if (val < 70) mediumLoad++;
+                else highLoad++;
+            }
+            console.log("刷新后热力图数据分布统计:");
+            console.log("低负载(0-30%): " + lowLoad + " 个设备");
+            console.log("中负载(30-70%): " + mediumLoad + " 个设备");
+            console.log("高负载(70-100%): " + highLoad + " 个设备");
+            
+            // 更新热力图数据
+            chart.setOption({
+                series: [{
+                    data: points
+                }],
+                // 确保刷新时保持相同的颜色映射
+                visualMap: {
+                    type: 'piecewise', // 使用分段型视觉映射组件
+                    min: 0,
+                    max: 100,
+                    dimension: 2, // 明确指定映射到数组的第三个值（流量使用率）
+                    precision: 0, // 精度
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '0%',
+                    pieces: [
+                        {min: 0, max: 30, color: '#91cc75'},  // 低负载 - 绿色
+                        {min: 30, max: 70, color: '#fac858'}, // 中负载 - 橙色
+                        {min: 70, max: 100, color: '#ee6666'} // 高负载 - 红色
+                    ],
+                    textStyle: {
+                        color: '#333'
+                    },
+                    // 显示分段连续使用文本
+                    formatter: function (value) {
+                        if (value <= 30) return '低负载';
+                        if (value <= 70) return '中负载';
+                        return '高负载';
+                    },
+                    inRange: {
+                        color: ['#91cc75', '#fac858', '#ee6666']
+                    }
+                }
+            });
+        }
+        
+        // 显示设备详情
+        function showDeviceDetail(device) {
+            // 更新设备信息
+            $('#device-title').text(device.name + ' 流量详情');
+            $('#detail-device-name').text(device.name);
+            $('#detail-ip').text(device.ip);
+            $('#detail-location').text(device.location || '未知位置');
+            $('#detail-status').text('在线').removeClass('text-danger').addClass('text-success');
+            $('#detail-in-traffic').text(device.in_rate.toFixed(2) + ' Mbps');
+            $('#detail-out-traffic').text(device.out_rate.toFixed(2) + ' Mbps');
+            $('#detail-utilization').text(device.value + '%');
+            
+            // 设置利用率条的样式
+            const utilizationBar = document.getElementById('detail-utilization-bar');
+            utilizationBar.style.width = device.value + "%";
+            utilizationBar.setAttribute('aria-valuenow', device.value);
+            
+            // 根据负载百分比设置颜色类
+            if (device.value < 30) {
+                // 低负载 - 绿色
+                utilizationBar.className = "progress-bar";
+                utilizationBar.style.backgroundColor = "#91cc75";
+            } else if (device.value < 70) {
+                // 中负载 - 黄色
+                utilizationBar.className = "progress-bar";
+                utilizationBar.style.backgroundColor = "#fac858";
+            } else {
+                // 高负载 - 红色
+                utilizationBar.className = "progress-bar";
+                utilizationBar.style.backgroundColor = "#ee6666";
+            }
+            
+            // 设置链接
+            $('#view-realtime').attr('href', `/monitor/realtime/${device.id}`);
+            $('#view-history').attr('href', `/monitor/history/${device.id}`);
+            
+            // 初始化详情图表
+            initDetailChart(device.id);
+            
+            // 显示详情区域
+            $('#traffic-detail').show();
+            
+            // 滚动到详情区域
+            $('html, body').animate({
+                scrollTop: $('#traffic-detail').offset().top
+            }, 500);
+        }
+
+        // 初始化详情图表
+        function initDetailChart(deviceId) {
+            // 初始化图表
+            var detailChart = echarts.init(document.getElementById('detail-chart'));
+            
+            // 显示加载动画
+            detailChart.showLoading();
+            
+            // 获取设备的24小时流量数据
+            $.ajax({
+                url: `/api/monitor/device/${deviceId}/traffic/24h`,
+                type: "GET",
+                dataType: "json",
+                success: function(result) {
+                    // 隐藏加载动画
+                    detailChart.hideLoading();
+                    
+                    if (!result || !result.data || result.data.length === 0) {
+                        // 无数据时显示提示
+                        detailChart.setOption({
+                            title: {
+                                text: '24小时流量趋势',
+                                left: 'center'
+                            },
+                            graphic: {
+                                type: 'text',
+                                left: 'center',
+                                top: 'middle',
+                                style: {
+                                    text: '暂无历史流量数据',
+                                    fontSize: 16,
+                                    fill: '#999'
+                                }
+                            }
+                        });
+                        return;
+                    }
+                    
+                    var data = result.data;
+                    var timeData = data.map(function(item) {
+                        return item.time;
+                    });
+                    
+                    var inData = data.map(function(item) {
+                        return parseFloat(item.in_rate).toFixed(2);
+                    });
+                    
+                    var outData = data.map(function(item) {
+                        return parseFloat(item.out_rate).toFixed(2);
+                    });
+                    
+                    // 配置图表选项
+                    var option = {
+                        title: {
+                            text: '24小时流量趋势',
+                            left: 'center'
+                        },
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'cross',
+                                label: {
+                                    backgroundColor: '#6a7985'
+                                }
+                            }
+                        },
+                        legend: {
+                            data: ['入站流量', '出站流量'],
+                            top: 30
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            boundaryGap: false,
+                            data: timeData
+                        },
+                        yAxis: {
+                            type: 'value',
+                            axisLabel: {
+                                formatter: '{value} Mbps'
+                            }
+                        },
+                        series: [
+                            {
+                                name: '入站流量',
+                                type: 'line',
+                                stack: 'Total',
+                                areaStyle: {},
+                                emphasis: {
+                                    focus: 'series'
+                                },
+                                data: inData,
+                                smooth: true,
+                                itemStyle: {
+                                    color: '#91cc75'
+                                }
+                            },
+                            {
+                                name: '出站流量',
+                                type: 'line',
+                                stack: 'Total',
+                                areaStyle: {},
+                                emphasis: {
+                                    focus: 'series'
+                                },
+                                data: outData,
+                                smooth: true,
+                                itemStyle: {
+                                    color: '#5470c6'
+                                }
+                            }
+                        ]
+                    };
+                    
+                    // 使用配置项显示图表
+                    detailChart.setOption(option);
+                },
+                error: function(xhr, status, error) {
+                    // 隐藏加载动画
+                    detailChart.hideLoading();
+                    
+                    // 显示错误信息
+                    detailChart.setOption({
+                        title: {
+                            text: '24小时流量趋势',
+                            left: 'center'
+                        },
+                        graphic: {
+                            type: 'text',
+                            left: 'center',
+                            top: 'middle',
+                            style: {
+                                text: '加载流量数据失败: ' + error,
+                                fontSize: 14,
+                                fill: '#f5222d'
+                            }
+                        }
+                    });
+                    
+                    console.error("获取设备流量数据失败:", error);
+                }
+            });
+            
+            // 窗口大小变化时，重新调整ECharts大小
+            $(window).resize(function() {
+                detailChart.resize();
+            });
+        }
+
+        // 关闭详情按钮点击事件
+        $('#close-detail').on('click', function() {
+            $('#traffic-detail').hide();
+        });
+        
+        // 刷新热力图按钮点击事件
+        $('#refresh-heatmap').on('click', function() {
+            heatmapChart.showLoading();
+            $.getJSON("{{ url_for('monitor.api_heatmap') }}", function(data) {
+                heatmapChart.hideLoading();
+                updateHeatmap(heatmapChart, data);
+            }).fail(function(xhr, status, error) {
+                heatmapChart.hideLoading();
+                console.error("刷新热力图数据失败:", error);
+            });
+        });
+
+        // 刷新缓存按钮点击事件
+        $('#refresh-cache').on('click', function() {
+            // 禁用按钮，显示加载状态
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+            $btn.html('<i class="fas fa-spinner fa-spin"></i> 刷新中...');
+            
+            // 调用刷新缓存API
+            $.ajax({
+                url: "{{ url_for('monitor.api_heatmap_refresh') }}",
+                type: "GET",
+                dataType: "json",
+                success: function(result) {
+                    // 显示成功消息
+                    if (result.status === "success") {
+                        alert(result.message);
+                        // 刷新热力图
+                        heatmapChart.showLoading();
+                        $.getJSON("{{ url_for('monitor.api_heatmap') }}", function(data) {
+                            heatmapChart.hideLoading();
+                            updateHeatmap(heatmapChart, data);
+                        }).fail(function(xhr, status, error) {
+                            heatmapChart.hideLoading();
+                            console.error("刷新热力图数据失败:", error);
+                        });
+                    } else {
+                        alert("刷新缓存失败: " + (result.message || "未知错误"));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("刷新缓存出错: " + error);
+                    console.error("刷新缓存出错:", error);
+                },
+                complete: function() {
+                    // 恢复按钮状态
+                    $btn.prop('disabled', false);
+                    $btn.html('<i class="fas fa-database"></i> 刷新缓存');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}个人中心 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- 侧边栏导航 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-column align-items-center text-center mb-4">
+                        <div class="user-avatar mb-3">
+                            <i class="fas fa-user-circle fa-5x text-primary"></i>
+                        </div>
+                        <h5 class="mb-1">{{ g.user.username }}</h5>
+                        <p class="text-muted">{{ g.user.name }}</p>
+                    </div>
+                    <div class="list-group">
+                        <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action active">
+                            <i class="fas fa-id-card me-2"></i> 个人信息
+                        </a>
+                        <a href="{{ url_for('auth.settings') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-cog me-2"></i> 账户设置
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-bell me-2"></i> 消息通知
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-history me-2"></i> 操作记录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- 个人信息卡片 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-user me-2"></i>基本信息</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">用户名</label>
+                                <p class="form-control-plaintext">{{ g.user.username }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">姓名</label>
+                                <p class="form-control-plaintext">{{ g.user.name }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">邮箱</label>
+                                <p class="form-control-plaintext">{{ g.user.email }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">部门</label>
+                                <p class="form-control-plaintext">{{ g.user.department or '未设置' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('auth.settings') }}" class="btn btn-primary">
+                            <i class="fas fa-edit me-1"></i> 编辑信息
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 账户信息卡片 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-shield-alt me-2"></i>账户信息</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">账户创建时间</label>
+                                <p class="form-control-plaintext">{{ g.user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">上次登录时间</label>
+                                <p class="form-control-plaintext">{{ g.user.last_login.strftime('%Y-%m-%d %H:%M:%S') if g.user.last_login else '从未登录' }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-muted">账户状态</label>
+                                <p class="form-control-plaintext">
+                                    <span class="badge bg-success">活跃</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近活动卡片 -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>最近活动</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item px-0">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">登录系统</h6>
+                                <small class="text-muted">{{ g.user.last_login.strftime('%Y-%m-%d %H:%M:%S') if g.user.last_login else '未知' }}</small>
+                            </div>
+                            <p class="mb-1 text-muted">从 IP: 192.168.1.100 登录系统</p>
+                        </div>
+                        <div class="list-group-item px-0">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">修改个人信息</h6>
+                                <small class="text-muted">2023-04-15 14:30:22</small>
+                            </div>
+                            <p class="mb-1 text-muted">更新了邮箱地址</p>
+                        </div>
+                        <div class="list-group-item px-0">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">处理告警</h6>
+                                <small class="text-muted">2023-04-14 09:45:12</small>
+                            </div>
+                            <p class="mb-1 text-muted">处理了设备 "Core Switch 01" 的流量异常告警</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <a href="#" class="btn btn-sm btn-outline-primary">查看所有活动</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

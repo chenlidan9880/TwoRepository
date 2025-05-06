@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}流量热力图{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/heatmap.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4">网络流量热力图</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5>时间范围</h5>
+                </div>
+                <div class="card-body">
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-primary time-range" data-range="hour">1小时</button>
+                        <button type="button" class="btn btn-outline-primary time-range" data-range="day">24小时</button>
+                        <button type="button" class="btn btn-outline-primary time-range active" data-range="week">7天</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5>图例说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div><span class="legend-color" style="background-color: blue;"></span> 低流量</div>
+                        <div><span class="legend-color" style="background-color: green;"></span> 中低流量</div>
+                        <div><span class="legend-color" style="background-color: yellow;"></span> 中高流量</div>
+                        <div><span class="legend-color" style="background-color: red;"></span> 高流量</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5>校园网络流量分布</h5>
+                </div>
+                <div class="card-body">
+                    <div id="heatmap-container" style="width: 100%; height: 600px;">
+                        <!-- 热力图将在这里渲染 -->
+                        <div id="campus-map">
+                            <!-- 校园地图底图 -->
+                        </div>
+                        <div id="heatmap-canvas">
+                            <!-- 热力图层 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>流量趋势</h5>
+                </div>
+                <div class="card-body">
+                    <div id="trend-chart" style="width: 100%; height: 300px;"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>设备分布</h5>
+                </div>
+                <div class="card-body">
+                    <div id="device-distribution" style="width: 100%; height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>热点设备列表</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>设备名称</th>
+                                <th>位置</th>
+                                <th>总流量</th>
+                                <th>流入流量</th>
+                                <th>流出流量</th>
+                                <th>热力值</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hotspot-devices">
+                            <!-- 热点设备将在这里动态渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- 引入heatmap.js库 -->
+<script src="https://cdn.jsdelivr.net/npm/heatmap.js@2.0.5/build/heatmap.min.js"></script>
+<!-- 引入Echarts库用于趋势图和分布图 -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.1/dist/echarts.min.js"></script>
+<!-- 自定义热力图脚本 -->
+<script src="{{ url_for('static', filename='js/heatmap.js') }}"></script>
+{% endblock %} 

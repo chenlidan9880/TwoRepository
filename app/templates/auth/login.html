@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 校园网流量可视化系统</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.3.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .login-container {
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            width: 100%;
+            max-width: 450px;
+        }
+        
+        .login-header {
+            background: linear-gradient(to right, #4e73df, #36b9cc);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .login-title {
+            color: white;
+            margin-bottom: 0;
+            font-weight: 600;
+        }
+        
+        .login-body {
+            padding: 2rem;
+        }
+        
+        .login-footer {
+            background-color: #f8f9fc;
+            border-top: 1px solid #e3e6f0;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .login-icon {
+            font-size: 4rem;
+            color: white;
+            margin-bottom: 1rem;
+        }
+        
+        .login-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0;
+        }
+        
+        .form-control:focus {
+            border-color: #4e73df;
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        }
+        
+        .btn-login {
+            background-color: #4e73df;
+            border-color: #4e73df;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            font-weight: 600;
+        }
+        
+        .btn-login:hover {
+            background-color: #2e59d9;
+            border-color: #2653d4;
+            color: white;
+        }
+        
+        .login-help {
+            margin-top: 1rem;
+            color: #6c757d;
+        }
+        
+        .login-help a {
+            color: #4e73df;
+            text-decoration: none;
+        }
+        
+        .login-help a:hover {
+            text-decoration: underline;
+        }
+        
+        .login-alert {
+            margin-bottom: 1.5rem;
+        }
+        
+        .page-footer {
+            padding: 1rem 0;
+            background-color: #f8f9fa;
+            text-align: center;
+            margin-top: auto;
+        }
+        
+        .password-field-container {
+            position: relative;
+        }
+        
+        /* 移除原生浏览器密码眼睛图标 */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+            display: none;
+        }
+        
+        /* 移除可能存在的其他密码图标 */
+        .password-field-container .form-control::-webkit-caps-lock-indicator,
+        .password-field-container .form-control::-webkit-credentials-auto-fill-button,
+        .password-field-container .form-control::-webkit-strong-password-indicator {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        
+        .toggle-password-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            z-index: 20; /* 增加z-index确保在最上层 */
+            padding: 6px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            height: 32px;
+            width: 32px;
+            line-height: 1;
+        }
+        
+        .toggle-password-icon:hover {
+            color: #4e73df;
+            background-color: rgba(78, 115, 223, 0.1);
+        }
+        
+        .password-field-container input {
+            padding-right: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container login-container">
+        <div class="row justify-content-center w-100">
+            <div class="col-lg-5 col-md-7">
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                <div class="alert alert-danger login-alert">
+                    {% for message in messages %}
+                    <div>{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+                
+                <div class="card login-card">
+                    <div class="login-header">
+                        <i class="fas fa-network-wired login-icon"></i>
+                        <h3 class="login-title">校园网络监控系统</h3>
+                        <p class="login-subtitle">Campus Network Monitor</p>
+                    </div>
+                    <div class="login-body">
+                        <form method="post" novalidate>
+                            {{ form.hidden_tag() }}
+                            <div class="mb-4">
+                                <label for="{{ form.username.id }}" class="form-label">
+                                    <i class="fas fa-user text-primary me-2"></i>{{ form.username.label.text }}
+                                </label>
+                                {{ form.username(class_="form-control form-control-lg", placeholder="请输入用户名") }}
+                                {% for error in form.username.errors %}
+                                <div class="text-danger mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="mb-4">
+                                <label for="{{ form.password.id }}" class="form-label">
+                                    <i class="fas fa-lock text-primary me-2"></i>{{ form.password.label.text }}
+                                </label>
+                                <div class="password-field-container">
+                                    {{ form.password(class_="form-control form-control-lg", placeholder="请输入密码", autocomplete="current-password") }}
+                                    <i class="fas fa-eye toggle-password-icon" title="显示/隐藏密码"></i>
+                                </div>
+                                {% for error in form.password.errors %}
+                                <div class="text-danger mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="mb-4 form-check">
+                                {{ form.remember_me(class_="form-check-input") }}
+                                <label for="{{ form.remember_me.id }}" class="form-check-label">
+                                    {{ form.remember_me.label.text }}
+                                </label>
+                            </div>
+                            <div class="d-grid gap-2">
+                                {{ form.submit(class_="btn btn-lg btn-login") }}
+                            </div>
+                            <div class="login-help">
+                                <p class="mb-0">还没有账号？ <a href="{{ url_for('auth.register') }}">立即注册</a></p>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="login-footer">
+                        <p class="mb-0">© {{ now.year }} 校园网络监控系统 </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- jQuery -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 确保只有一个显示/隐藏密码图标
+            const removeExtraPasswordIcons = function() {
+                // 查找每个密码框容器
+                document.querySelectorAll('.password-field-container').forEach(container => {
+                    // 移除浏览器可能添加的其他控件
+                    const inputField = container.querySelector('input');
+                    if (inputField) {
+                        // 尝试移除浏览器默认的控件
+                        inputField.setAttribute('autocomplete', 'current-password');
+                        
+                        // 确保只有我们添加的图标存在
+                        const icons = container.querySelectorAll('.toggle-password-icon');
+                        if (icons.length > 1) {
+                            // 如果有多个图标，保留最后一个（我们添加的）
+                            for (let i = 0; i < icons.length - 1; i++) {
+                                icons[i].remove();
+                            }
+                        }
+                    }
+                });
+            };
+            
+            // 初始执行一次
+            removeExtraPasswordIcons();
+            
+            // 在DOM变化时再次检查
+            const observer = new MutationObserver(removeExtraPasswordIcons);
+            observer.observe(document.body, { childList: true, subtree: true });
+            
+            // 密码显示/隐藏切换功能
+            $('.toggle-password-icon').click(function() {
+                const passwordInput = $(this).siblings('input');
+                
+                // 切换密码字段类型
+                if (passwordInput.attr('type') === 'password') {
+                    passwordInput.attr('type', 'text');
+                    $(this).removeClass('fa-eye').addClass('fa-eye-slash');
+                } else {
+                    passwordInput.attr('type', 'password');
+                    $(this).removeClass('fa-eye-slash').addClass('fa-eye');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

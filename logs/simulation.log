@@ -1,0 +1,19 @@
+[2025-03-31 16:49:53] [INFO] 开始生成模拟数据，参数：Namespace(all=True, topology=True, traffic=True, security=True, days=7, samples=12, no_clear=False, debug=False)
+[2025-03-31 16:49:53] [INFO] 开始生成网络拓扑结构...
+[2025-03-31 16:49:54] [INFO] 网络拓扑生成完成
+[2025-03-31 16:49:54] [INFO] 开始生成高级流量数据 (7 天)...
+[2025-03-31 16:49:54] [ERROR] 生成高级流量数据时出错: Scheduler is already running
+[2025-03-31 16:49:54] [INFO] 开始生成安全事件和异常流量数据 (7 天)...
+[2025-03-31 16:49:54] [ERROR] 生成安全事件数据时出错: Scheduler is already running
+[2025-03-31 16:49:54] [INFO] 模拟数据生成完成，总耗时：1.01秒
+[2025-04-07 10:32:12] [INFO] 开始生成模拟数据，参数：Namespace(all=False, topology=True, traffic=True, security=True, days=7, samples=12, no_clear=False, debug=False)
+[2025-04-07 10:32:12] [INFO] 开始生成网络拓扑结构...
+[2025-04-07 10:32:16] [ERROR] 生成网络拓扑时出错: (pymysql.err.IntegrityError) (1062, "Duplicate entry '核心路由器' for key 'devices.ix_devices_name'")
+[SQL: INSERT INTO devices (name, ip_address, device_type, location, snmp_community, snmp_version, snmp_port, `status`, description, created_at, updated_at) VALUES (%(name)s, %(ip_address)s, %(device_type)s, %(location)s, %(snmp_community)s, %(snmp_version)s, %(snmp_port)s, %(status)s, %(description)s, %(created_at)s, %(updated_at)s)]
+[parameters: {'name': '核心路由器', 'ip_address': '10.0.0.1', 'device_type': 'router', 'location': '网络中心', 'snmp_community': 'public', 'snmp_version': '2c', 'snmp_port': 161, 'status': 'online', 'description': '模拟router设备', 'created_at': datetime.datetime(2025, 4, 7, 2, 32, 16, 146842), 'updated_at': datetime.datetime(2025, 4, 7, 2, 32, 16, 146842)}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+[2025-04-07 10:32:16] [INFO] 开始生成高级流量数据 (7 天)...
+[2025-04-07 10:32:16] [ERROR] 生成高级流量数据时出错: Scheduler is already running
+[2025-04-07 10:32:16] [INFO] 开始生成安全事件和异常流量数据 (7 天)...
+[2025-04-07 10:32:16] [ERROR] 生成安全事件数据时出错: Scheduler is already running
+[2025-04-07 10:32:16] [INFO] 模拟数据生成完成，总耗时：3.82秒

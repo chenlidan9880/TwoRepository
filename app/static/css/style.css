@@ -1,0 +1,89 @@
+/* 全局样式 */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* 卡片样式 */
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+}
+
+.card:hover {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-5px);
+}
+
+/* 导航栏样式 */
+.navbar-brand {
+    font-weight: 700;
+}
+
+/* 数据视图样式 */
+.display-4 {
+    font-weight: 600;
+}
+
+/* 按钮样式 */
+.btn {
+    border-radius: 4px;
+}
+
+/* 图表容器样式 */
+.chart-container {
+    width: 100%;
+    height: 400px;
+    margin-bottom: 20px;
+}
+
+/* 热力图样式 */
+#heatmap {
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* 告警样式 */
+.alert-critical {
+    background-color: #fff1f0;
+    border-color: #ffa39e;
+}
+
+.alert-warning {
+    background-color: #fffbe6;
+    border-color: #ffe58f;
+}
+
+.alert-info {
+    background-color: #e6f7ff;
+    border-color: #91d5ff;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 300px;
+    }
+}
+
+/* 登录和注册表单样式 */
+.form-signin, .form-register {
+    width: 100%;
+    max-width: 420px;
+    padding: 15px;
+    margin: auto;
+}
+
+/* 面板标题样式 */
+.panel-title {
+    color: #1890ff;
+    font-weight: 600;
+    border-left: 3px solid #1890ff;
+    padding-left: 10px;
+    margin-bottom: 20px;
+} 

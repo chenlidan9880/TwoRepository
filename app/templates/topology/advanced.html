@@ -1,0 +1,1037 @@
+{% extends 'base.html' %}
+
+{% block title %}高级网络拓扑 - {{ super() }}{% endblock %}
+
+{% block head %}
+<style>
+    .network-container {
+        position: relative;
+        width: 100%;
+        height: 700px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .controls-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        width: 250px;
+    }
+    
+    .node-details {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        width: 300px;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+    }
+    
+    .tooltip {
+        position: absolute;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        pointer-events: none;
+        font-size: 12px;
+        z-index: 20;
+        display: none;
+    }
+    
+    .search-box {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .control-item {
+        margin-bottom: 10px;
+    }
+    
+    .control-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .node {
+        cursor: pointer;
+    }
+    
+    .link {
+        stroke: #999;
+        stroke-opacity: 0.6;
+    }
+    
+    .node-router circle {
+        fill: #e74c3c;
+    }
+    
+    .node-switch circle {
+        fill: #3498db;
+    }
+    
+    .node-wireless circle {
+        fill: #2ecc71;
+    }
+    
+    .node-terminal circle {
+        fill: #9b59b6;
+    }
+    
+    .node text {
+        font-size: 10px;
+        fill: #333;
+    }
+    
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-right: 15px;
+        margin-bottom: 5px;
+    }
+    
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .stats-title {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .stats-item {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+    }
+    
+    .stats-value {
+        font-size: 16px;
+        font-weight: bold;
+        color: #2e86de;
+    }
+    
+    .stats-label {
+        font-size: 12px;
+        color: #57606f;
+    }
+    
+    .traffic-bar {
+        height: 8px;
+        margin-top: 5px;
+        border-radius: 4px;
+        background-color: #e6e6e6;
+    }
+    
+    .traffic-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .device-info dt {
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    
+    .device-info dd {
+        margin-left: 0;
+    }
+    
+    .status-online {
+        color: #2ecc71;
+    }
+    
+    .status-offline {
+        color: #e74c3c;
+    }
+    
+    .traffic-stats {
+        margin-top: 15px;
+    }
+    
+    .btn-panel {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-between;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-project-diagram"></i> 高级网络拓扑可视化</h1>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="legend">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #e74c3c;"></div>
+                                <span>路由器</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #3498db;"></div>
+                                <span>交换机</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #2ecc71;"></div>
+                                <span>无线AP</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #9b59b6;"></div>
+                                <span>终端设备</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="network-container">
+                    <div id="topology-graph"></div>
+                    
+                    <div class="controls-panel">
+                        <h5><i class="fas fa-sliders-h"></i> 控制面板</h5>
+                        <div class="control-item">
+                            <div class="control-label">搜索设备</div>
+                            <input type="text" id="search-input" class="form-control form-control-sm search-box" placeholder="输入设备名称或IP...">
+                        </div>
+                        <div class="control-item">
+                            <div class="control-label">设备类型</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-routers" checked>
+                                <label class="form-check-label" for="show-routers">路由器</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-switches" checked>
+                                <label class="form-check-label" for="show-switches">交换机</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-wireless" checked>
+                                <label class="form-check-label" for="show-wireless">无线AP</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-terminals" checked>
+                                <label class="form-check-label" for="show-terminals">终端设备</label>
+                            </div>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-label">显示设置</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-labels" checked>
+                                <label class="form-check-label" for="show-labels">显示标签</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-traffic" checked>
+                                <label class="form-check-label" for="show-traffic">显示流量</label>
+                            </div>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-label">布局</div>
+                            <select id="layout-type" class="form-select form-select-sm" title="选择布局类型">
+                                <option value="force" selected>力导向布局</option>
+                                <option value="radial">辐射布局</option>
+                                <option value="tree">树形布局</option>
+                                <option value="grid">网格布局</option>
+                            </select>
+                        </div>
+                        <div class="control-item">
+                            <button id="reset-zoom" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="fas fa-undo"></i> 重置视图
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="node-details" id="node-details">
+                        <h5 id="device-name">设备详情</h5>
+                        <div id="device-details-content">
+                            <!-- 设备详情内容将在这里动态加载 -->
+                        </div>
+                        <div class="btn-panel">
+                            <button id="close-details" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-times"></i> 关闭
+                            </button>
+                            <a id="view-device-link" href="#" class="btn btn-sm btn-primary">
+                                <i class="fas fa-external-link-alt"></i> 查看详情
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="tooltip" id="node-tooltip"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> 网络统计</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="stats-title">设备类型分布</div>
+                        <div id="device-type-chart" style="height: 250px;"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-title">位置分布</div>
+                        <div id="location-chart" style="height: 250px;"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-title">终端类型分布</div>
+                        <div id="terminal-type-chart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 全局变量
+    let graph;
+    let deviceTypeChart;
+    let locationChart;
+    let terminalTypeChart;
+    let graphNodes = [];
+    let graphLinks = [];
+    let simulation;
+    let svg;
+    let container;
+    let zoom;
+    
+    // 拓扑设置
+    const settings = {
+        showLabels: true,
+        showTraffic: true,
+        showRouters: true,
+        showSwitches: true,
+        showWireless: true,
+        showTerminals: true,
+        layoutType: 'force'
+    };
+    
+    $(document).ready(function() {
+        // 创建拓扑图
+        initTopology();
+        
+        // 加载拓扑数据
+        loadTopologyData();
+        
+        // 初始化统计图表
+        initStatistics();
+        
+        // 绑定事件处理器
+        bindEventHandlers();
+    });
+    
+    function initTopology() {
+        // 创建SVG容器
+        const width = $('#topology-graph').parent().width();
+        const height = $('#topology-graph').parent().height();
+        
+        svg = d3.select("#topology-graph")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet");
+        
+        // 添加缩放功能
+        zoom = d3.zoom()
+            .scaleExtent([0.1, 5])
+            .on("zoom", function(event) {
+                container.attr("transform", event.transform);
+            });
+        
+        svg.call(zoom);
+        
+        // 创建主容器组
+        container = svg.append("g");
+        
+        // 创建连接线组
+        container.append("g").attr("class", "links");
+        
+        // 创建节点组
+        container.append("g").attr("class", "nodes");
+        
+        // 创建力导向模拟
+        simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide().radius(30));
+    }
+    
+    function loadTopologyData() {
+        $.ajax({
+            url: '/topology/api/topology-data',
+            method: 'GET',
+            success: function(data) {
+                // 处理节点数据
+                graphNodes = data.nodes.map(node => {
+                    return {
+                        ...node,
+                        radius: getNodeRadius(node.type)
+                    };
+                });
+                
+                // 处理连接数据
+                graphLinks = data.links;
+                
+                // 更新拓扑图
+                updateTopology();
+                
+                // 更新统计图表
+                updateStatistics();
+            },
+            error: function(error) {
+                console.error("加载拓扑数据失败:", error);
+                $('#topology-graph').html('<div class="alert alert-danger">加载拓扑数据失败</div>');
+            }
+        });
+    }
+    
+    function updateTopology() {
+        // 过滤节点
+        const filteredNodes = graphNodes.filter(node => {
+            if (node.type === 'router' && !settings.showRouters) return false;
+            if (node.type === 'switch' && !settings.showSwitches) return false;
+            if (node.type === 'wireless' && !settings.showWireless) return false;
+            if (node.type === 'terminal' && !settings.showTerminals) return false;
+            return true;
+        });
+        
+        // 过滤连接
+        const nodeIds = new Set(filteredNodes.map(n => n.id));
+        const filteredLinks = graphLinks.filter(link => 
+            nodeIds.has(link.source.id || link.source) && 
+            nodeIds.has(link.target.id || link.target)
+        );
+        
+        // 更新连接
+        const links = container.select(".links")
+            .selectAll("line")
+            .data(filteredLinks, d => `${d.source.id || d.source}-${d.target.id || d.target}`);
+        
+        links.exit().remove();
+        
+        const linksEnter = links.enter()
+            .append("line")
+            .attr("class", "link")
+            .attr("stroke-width", 2);
+        
+        // 更新节点
+        const nodes = container.select(".nodes")
+            .selectAll(".node")
+            .data(filteredNodes, d => d.id);
+        
+        nodes.exit().remove();
+        
+        const nodesEnter = nodes.enter()
+            .append("g")
+            .attr("class", d => `node node-${d.type}`)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+        
+        // 添加节点图形
+        nodesEnter.append("circle")
+            .attr("r", d => d.radius);
+        
+        // 添加节点图标
+        nodesEnter.append("text")
+            .attr("class", "fa")
+            .attr("text-anchor", "middle")
+            .attr("dominant-baseline", "central")
+            .attr("fill", "white")
+            .attr("font-size", d => `${d.radius * 0.6}px`)
+            .text(d => {
+                if (d.type === 'router') return '\uf6ff';  // 路由器图标
+                if (d.type === 'switch') return '\uf6ff';  // 交换机图标
+                if (d.type === 'wireless') return '\uf1eb';  // 无线图标
+                return '\uf109';  // 终端图标
+            });
+        
+        // 添加节点标签
+        nodesEnter.append("text")
+            .attr("class", "node-label")
+            .attr("dy", d => d.radius + 12)
+            .attr("text-anchor", "middle")
+            .text(d => d.name)
+            .style("display", settings.showLabels ? null : "none");
+        
+        // 合并选择集
+        const allLinks = links.merge(linksEnter);
+        const allNodes = nodes.merge(nodesEnter);
+        
+        // 添加节点交互
+        allNodes
+            .on("mouseover", showNodeTooltip)
+            .on("mouseout", hideNodeTooltip)
+            .on("click", showNodeDetails);
+        
+        // 更新标签显示
+        allNodes.selectAll(".node-label")
+            .style("display", settings.showLabels ? null : "none");
+        
+        // 更新力导向模拟
+        simulation.nodes(filteredNodes)
+            .on("tick", ticked);
+        
+        simulation.force("link")
+            .links(filteredLinks);
+        
+        // 应用布局
+        applyLayout(settings.layoutType);
+        
+        // tick处理函数
+        function ticked() {
+            allLinks
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+            
+            allNodes
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        }
+        
+        // 重启模拟
+        simulation.alpha(1).restart();
+    }
+    
+    function getNodeRadius(type) {
+        switch (type) {
+            case 'router': return 20;
+            case 'switch': return 16;
+            case 'wireless': return 14;
+            case 'terminal': return 12;
+            default: return 10;
+        }
+    }
+    
+    function showNodeTooltip(event, d) {
+        const tooltip = d3.select("#node-tooltip");
+        tooltip.html(`
+            <strong>${d.name}</strong><br/>
+            类型: ${getDeviceTypeLabel(d.type)}<br/>
+            IP: ${d.ip || 'N/A'}<br/>
+            位置: ${d.location || 'N/A'}
+        `);
+        
+        // 计算提示框位置
+        const tooltipWidth = tooltip.node().getBoundingClientRect().width;
+        const x = event.pageX - tooltipWidth / 2;
+        const y = event.pageY - 80;
+        
+        tooltip
+            .style("left", `${x}px`)
+            .style("top", `${y}px`)
+            .style("display", "block");
+    }
+    
+    function hideNodeTooltip() {
+        d3.select("#node-tooltip").style("display", "none");
+    }
+    
+    function showNodeDetails(event, d) {
+        // 阻止事件冒泡
+        event.stopPropagation();
+        
+        // 获取设备详细信息
+        $.ajax({
+            url: `/topology/api/device-details/${d.id}`,
+            method: 'GET',
+            success: function(data) {
+                // 更新设备名称
+                $("#device-name").text(data.name);
+                
+                // 更新设备详情内容
+                let detailsHtml = `
+                <dl class="device-info">
+                    <dt>设备ID</dt>
+                    <dd>${data.id}</dd>
+                    
+                    <dt>设备类型</dt>
+                    <dd>${getDeviceTypeLabel(data.type)}</dd>
+                    
+                    <dt>IP地址</dt>
+                    <dd>${data.ip_address}</dd>
+                    
+                    <dt>位置</dt>
+                    <dd>${data.location}</dd>
+                    
+                    <dt>状态</dt>
+                    <dd>
+                        <span class="status-${data.status === 'online' ? 'online' : 'offline'}">
+                            <i class="fas fa-${data.status === 'online' ? 'check-circle' : 'times-circle'}"></i>
+                            ${data.status === 'online' ? '在线' : '离线'}
+                        </span>
+                    </dd>
+                </dl>
+                `;
+                
+                // 添加终端统计
+                if (data.connected_terminals) {
+                    detailsHtml += `
+                    <div class="stats-title mt-3">连接的终端设备</div>
+                    <div class="stats-item">
+                        <div class="stats-value">${data.connected_terminals}</div>
+                        <div class="stats-label">终端总数</div>
+                    </div>
+                    `;
+                }
+                
+                // 添加端口统计
+                if (data.port_count > 0) {
+                    detailsHtml += `
+                    <div class="stats-title mt-3">端口利用率</div>
+                    <div>
+                        <div class="d-flex justify-content-between">
+                            <span>活动端口: ${data.active_ports}</span>
+                            <span>总端口: ${data.port_count}</span>
+                        </div>
+                        <div class="traffic-bar">
+                            <div class="traffic-bar-fill" style="width: ${data.port_utilization}%"></div>
+                        </div>
+                        <div class="text-center mt-1">${data.port_utilization}%</div>
+                    </div>
+                    `;
+                }
+                
+                // 更新详情内容
+                $("#device-details-content").html(detailsHtml);
+                
+                // 更新查看详情链接
+                $("#view-device-link").attr("href", `/device/view/${data.id}`);
+                
+                // 显示详情面板
+                $("#node-details").fadeIn();
+            },
+            error: function(error) {
+                console.error("获取设备详情失败:", error);
+            }
+        });
+    }
+    
+    function getDeviceTypeLabel(type) {
+        switch (type) {
+            case 'router': return '路由器';
+            case 'switch': return '交换机';
+            case 'wireless': return '无线AP';
+            case 'terminal': return '终端设备';
+            default: return '未知设备';
+        }
+    }
+    
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+    
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+    
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+    
+    function applyLayout(layoutType) {
+        // 停止当前模拟
+        simulation.stop();
+        
+        // 获取容器尺寸
+        const width = $('#topology-graph').parent().width();
+        const height = $('#topology-graph').parent().height();
+        
+        // 根据布局类型应用不同的力
+        switch (layoutType) {
+            case 'force':
+                simulation
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("link", d3.forceLink().id(d => d.id).distance(100))
+                    .force("charge", d3.forceManyBody().strength(-300));
+                break;
+                
+            case 'radial':
+                // 辐射布局
+                const radius = Math.min(width, height) / 2 - 100;
+                
+                // 按类型分组
+                const groupedNodes = d3.group(graphNodes, d => d.type);
+                const nodeTypes = Array.from(groupedNodes.keys());
+                
+                simulation
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("link", d3.forceLink().id(d => d.id).distance(50))
+                    .force("charge", d3.forceManyBody().strength(-100))
+                    .force("radial", d3.forceRadial(d => {
+                        const typeIndex = nodeTypes.indexOf(d.type);
+                        return radius * (typeIndex + 1) / (nodeTypes.length + 1);
+                    }, width / 2, height / 2).strength(0.8));
+                break;
+                
+            case 'tree':
+                // 树形布局
+                // 找出根节点（路由器）
+                const rootNode = graphNodes.find(n => n.type === 'router');
+                
+                if (rootNode) {
+                    // 暂时禁用其他力
+                    simulation
+                        .force("center", null)
+                        .force("charge", d3.forceManyBody().strength(-50))
+                        .force("link", d3.forceLink().id(d => d.id).distance(80).strength(0.7));
+                    
+                    // 设置根节点位置
+                    rootNode.fx = width / 2;
+                    rootNode.fy = 100;
+                    
+                    // 寻找交换机
+                    const switches = graphNodes.filter(n => n.type === 'switch');
+                    
+                    // 计算交换机的平均位置
+                    const switchPositions = [];
+                    const switchCount = switches.length;
+                    const switchSpacing = width / (switchCount + 1);
+                    
+                    for (let i = 0; i < switchCount; i++) {
+                        switchPositions.push({ x: (i + 1) * switchSpacing, y: 250 });
+                    }
+                    
+                    // 设置交换机的固定位置
+                    switches.forEach((switchNode, idx) => {
+                        if (idx < switchPositions.length) {
+                            switchNode.fx = switchPositions[idx].x;
+                            switchNode.fy = switchPositions[idx].y;
+                        }
+                    });
+                }
+                break;
+                
+            case 'grid':
+                // 网格布局
+                const spacing = 100;
+                const cols = Math.floor(width / spacing);
+                
+                graphNodes.forEach((node, idx) => {
+                    const row = Math.floor(idx / cols);
+                    const col = idx % cols;
+                    node.fx = col * spacing + spacing;
+                    node.fy = row * spacing + spacing;
+                });
+                break;
+        }
+        
+        // 重启模拟
+        simulation.alpha(1).restart();
+    }
+    
+    function initStatistics() {
+        // 初始化设备类型饼图
+        deviceTypeChart = echarts.init(document.getElementById('device-type-chart'));
+        deviceTypeChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                top: 'center',
+                data: ['路由器', '交换机', '无线AP', '终端设备']
+            },
+            series: [
+                {
+                    name: '设备类型',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    avoidLabelOverlap: false,
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '16',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: true
+                    },
+                    data: []
+                }
+            ]
+        });
+        
+        // 初始化位置分布图
+        locationChart = echarts.init(document.getElementById('location-chart'));
+        locationChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                top: 'center',
+                data: []
+            },
+            series: [
+                {
+                    name: '位置分布',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    avoidLabelOverlap: false,
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '16',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: true
+                    },
+                    data: []
+                }
+            ]
+        });
+        
+        // 初始化终端类型饼图
+        terminalTypeChart = echarts.init(document.getElementById('terminal-type-chart'));
+        terminalTypeChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                top: 'center',
+                data: ['PC', '移动设备', 'IoT设备']
+            },
+            series: [
+                {
+                    name: '终端类型',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    avoidLabelOverlap: false,
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '16',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: true
+                    },
+                    data: []
+                }
+            ]
+        });
+        
+        // 窗口大小变化时调整图表大小
+        window.addEventListener('resize', function() {
+            deviceTypeChart.resize();
+            locationChart.resize();
+            terminalTypeChart.resize();
+        });
+    }
+    
+    function updateStatistics() {
+        // 统计设备类型
+        const deviceTypes = d3.rollup(
+            graphNodes,
+            v => v.length,
+            d => d.type
+        );
+        
+        const deviceTypeData = [
+            { name: '路由器', value: deviceTypes.get('router') || 0, itemStyle: { color: '#e74c3c' } },
+            { name: '交换机', value: deviceTypes.get('switch') || 0, itemStyle: { color: '#3498db' } },
+            { name: '无线AP', value: deviceTypes.get('wireless') || 0, itemStyle: { color: '#2ecc71' } },
+            { name: '终端设备', value: deviceTypes.get('terminal') || 0, itemStyle: { color: '#9b59b6' } }
+        ];
+        
+        deviceTypeChart.setOption({
+            series: [{
+                data: deviceTypeData
+            }]
+        });
+        
+        // 统计位置分布
+        const locations = d3.rollup(
+            graphNodes,
+            v => v.length,
+            d => d.location || '未知'
+        );
+        
+        const locationData = Array.from(locations, ([key, value]) => ({
+            name: key,
+            value: value
+        }));
+        
+        // 位置图表颜色
+        const locationColors = [
+            '#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f',
+            '#e67e22', '#e74c3c', '#34495e', '#16a085', '#27ae60'
+        ];
+        
+        locationData.forEach((item, index) => {
+            item.itemStyle = { color: locationColors[index % locationColors.length] };
+        });
+        
+        locationChart.setOption({
+            legend: {
+                data: locationData.map(item => item.name)
+            },
+            series: [{
+                data: locationData
+            }]
+        });
+        
+        // 对于终端类型，我们需要进一步查询
+        $.ajax({
+            url: '/dashboard/api/statistics',
+            method: 'GET',
+            success: function(data) {
+                if (data.terminal && data.terminal.types) {
+                    const terminalTypeData = [
+                        { name: 'PC设备', value: data.terminal.types.find(t => t.name === 'PC')?.value || 0, itemStyle: { color: '#f39c12' } },
+                        { name: '移动设备', value: data.terminal.types.find(t => t.name === 'Mobile')?.value || 0, itemStyle: { color: '#9b59b6' } },
+                        { name: 'IoT设备', value: data.terminal.types.find(t => t.name === 'IoT')?.value || 0, itemStyle: { color: '#1abc9c' } }
+                    ];
+                    
+                    terminalTypeChart.setOption({
+                        series: [{
+                            data: terminalTypeData
+                        }]
+                    });
+                }
+            },
+            error: function(error) {
+                console.error('加载统计数据失败:', error);
+            }
+        });
+    }
+    
+    function bindEventHandlers() {
+        // 搜索框事件
+        $("#search-input").on("input", function() {
+            const searchTerm = $(this).val().toLowerCase();
+            
+            if (searchTerm.length > 0) {
+                // 高亮匹配的节点
+                container.selectAll(".node")
+                    .classed("highlighted", false)
+                    .filter(d => 
+                        (d.name && d.name.toLowerCase().includes(searchTerm)) || 
+                        (d.ip && d.ip.toLowerCase().includes(searchTerm))
+                    )
+                    .classed("highlighted", true)
+                    .each(function(d) {
+                        // 将匹配节点移到前面
+                        this.parentNode.appendChild(this);
+                    });
+            } else {
+                // 清除高亮
+                container.selectAll(".node").classed("highlighted", false);
+            }
+        });
+        
+        // 复选框事件
+        $("#show-routers").change(function() {
+            settings.showRouters = $(this).prop("checked");
+            updateTopology();
+        });
+        
+        $("#show-switches").change(function() {
+            settings.showSwitches = $(this).prop("checked");
+            updateTopology();
+        });
+        
+        $("#show-wireless").change(function() {
+            settings.showWireless = $(this).prop("checked");
+            updateTopology();
+        });
+        
+        $("#show-terminals").change(function() {
+            settings.showTerminals = $(this).prop("checked");
+            updateTopology();
+        });
+        
+        $("#show-labels").change(function() {
+            settings.showLabels = $(this).prop("checked");
+            container.selectAll(".node-label")
+                .style("display", settings.showLabels ? null : "none");
+        });
+        
+        $("#show-traffic").change(function() {
+            settings.showTraffic = $(this).prop("checked");
+            // 此处可以添加流量显示的逻辑
+        });
+        
+        // 布局选择事件
+        $("#layout-type").change(function() {
+            settings.layoutType = $(this).val();
+            applyLayout(settings.layoutType);
+        });
+        
+        // 重置视图按钮
+        $("#reset-zoom").click(function() {
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        });
+        
+        // 关闭详情按钮
+        $("#close-details").click(function() {
+            $("#node-details").fadeOut();
+        });
+        
+        // 点击背景时关闭详情
+        svg.on("click", function() {
+            $("#node-details").fadeOut();
+        });
+    }
+</script>
+{% endblock %} 

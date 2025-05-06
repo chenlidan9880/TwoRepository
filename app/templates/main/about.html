@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="h3 mb-0"><i class="fas fa-info-circle me-2"></i>关于校园网络监控系统</h1>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">系统概述</h5>
+                        <p>校园网络监控系统是一个专为高校网络环境设计的综合性网络管理平台，旨在提供直观、高效的网络基础设施监控和管理解决方案。该系统基于Python Flask框架开发，采用前后端分离架构，专注于解决校园网络环境中设备管理、流量监控、安全预警等核心需求。</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">主要功能</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-server text-primary fs-4 me-3 mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6>设备管理</h6>
+                                        <p class="text-muted small">支持对路由器、交换机、服务器等各类网络设备的集中管理和状态监控。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-chart-line text-success fs-4 me-3 mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6>流量监控</h6>
+                                        <p class="text-muted small">实时展示网络设备的入站/出站流量，提供多维度的流量趋势分析。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-exclamation-triangle text-warning fs-4 me-3 mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6>告警管理</h6>
+                                        <p class="text-muted small">当设备状态异常或流量超过预设阈值时自动生成告警，支持多级别告警分类。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-laptop text-info fs-4 me-3 mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6>终端管理</h6>
+                                        <p class="text-muted small">展示连接到网络设备的各类终端设备，如PC、移动设备、IoT设备等。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-fire text-danger fs-4 me-3 mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6>流量热力图</h6>
+                                        <p class="text-muted small">直观展示整个网络中各设备的流量负载情况，快速定位高负载区域。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-project-diagram text-primary fs-4 me-3 mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6>网络拓扑</h6>
+                                        <p class="text-muted small">可视化展示网络设备之间的连接关系，帮助理解网络结构。</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">技术栈</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-4 mb-2">
+                                <span class="badge bg-primary me-1">Python</span>
+                                <span class="badge bg-primary me-1">Flask</span>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <span class="badge bg-success me-1">SQLAlchemy</span>
+                                <span class="badge bg-success me-1">MySQL</span>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <span class="badge bg-info me-1 text-dark">Bootstrap</span>
+                                <span class="badge bg-info me-1 text-dark">ECharts</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">版本信息</h5>
+                        <table class="table table-striped">
+                            <tbody>
+                                <tr>
+                                    <td width="30%">系统版本</td>
+                                    <td>v1.0.0</td>
+                                </tr>
+                                <tr>
+                                    <td>发布日期</td>
+                                    <td>2025年4月1日</td>
+                                </tr>
+                                <tr>
+                                    <td>最后更新</td>
+                                    <td>{{ now.strftime('%Y年%m月%d日') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                            <i class="fas fa-home me-1"></i> 返回首页
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

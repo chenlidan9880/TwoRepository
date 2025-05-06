@@ -1,0 +1,627 @@
+{% extends 'base.html' %}
+
+{% block title %}网络拓扑概览 - {{ super() }}{% endblock %}
+
+{% block head %}
+<style>
+    .topology-stats-card {
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s;
+    }
+    .topology-stats-card:hover {
+        transform: translateY(-5px);
+    }
+    #network-map {
+        height: 500px;
+        width: 100%;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .device-icon {
+        font-size: 24px;
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        text-align: center;
+        border-radius: 50%;
+        margin: 0 auto 10px;
+    }
+    .device-router {
+        background-color: #ff6b6b;
+        color: white;
+    }
+    .device-switch {
+        background-color: #48dbfb;
+        color: white;
+    }
+    .device-wireless {
+        background-color: #1dd1a1;
+        color: white;
+    }
+    .device-terminal {
+        background-color: #f368e0;
+        color: white;
+    }
+    .network-legend {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 20px 0;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 0 15px;
+    }
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    .network-links line {
+        stroke: #999;
+        stroke-opacity: 0.6;
+        stroke-width: 2px;
+    }
+    .network-nodes circle {
+        stroke: #fff;
+        stroke-width: 2px;
+    }
+    .tooltip {
+        position: absolute;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        pointer-events: none;
+        z-index: 1000;
+        max-width: 300px;
+    }
+    .location-card {
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .location-header {
+        background-color: #f1f2f6;
+        padding: 15px;
+        border-radius: 10px 10px 0 0;
+        font-weight: bold;
+    }
+    .location-body {
+        padding: 15px;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .stats-item {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+    }
+    .stats-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2e86de;
+    }
+    .stats-label {
+        font-size: 12px;
+        color: #57606f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-network-wired"></i> 网络拓扑概览</h1>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card topology-stats-card bg-primary text-white">
+            <div class="card-body text-center">
+                <div class="device-icon device-router mx-auto">
+                    <i class="fas fa-router"></i>
+                </div>
+                <h5 class="card-title">路由器</h5>
+                <p class="card-text display-5">{{ router_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card topology-stats-card bg-info text-white">
+            <div class="card-body text-center">
+                <div class="device-icon device-switch mx-auto">
+                    <i class="fas fa-network-wired"></i>
+                </div>
+                <h5 class="card-title">交换机</h5>
+                <p class="card-text display-5">{{ switch_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card topology-stats-card bg-success text-white">
+            <div class="card-body text-center">
+                <div class="device-icon device-wireless mx-auto">
+                    <i class="fas fa-wifi"></i>
+                </div>
+                <h5 class="card-title">无线AP</h5>
+                <p class="card-text display-5">{{ wireless_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card topology-stats-card bg-warning text-white">
+            <div class="card-body text-center">
+                <div class="device-icon device-terminal mx-auto">
+                    <i class="fas fa-laptop"></i>
+                </div>
+                <h5 class="card-title">终端设备</h5>
+                <p class="card-text display-5">{{ terminal_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 网络拓扑图 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-project-diagram"></i> 网络拓扑图</h5>
+            </div>
+            <div class="card-body">
+                <div class="network-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>路由器</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3498db;"></div>
+                        <span>汇聚交换机</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2ecc71;"></div>
+                        <span>接入交换机</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #1abc9c;"></div>
+                        <span>无线AP</span>
+                    </div>
+                </div>
+                <div id="network-map"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 区域分布 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marker-alt"></i> 区域设备分布</h5>
+            </div>
+            <div class="card-body">
+                <div id="location-distribution" class="row">
+                    <!-- 动态生成区域卡片 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 终端设备统计 -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-laptop"></i> 终端设备类型分布</h5>
+            </div>
+            <div class="card-body">
+                <div id="terminal-type-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> 设备类型分布</h5>
+            </div>
+            <div class="card-body">
+                <div id="device-type-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 初始化网络拓扑图
+        initNetworkTopology();
+        
+        // 获取区域统计
+        loadLocationStatistics();
+        
+        // 初始化设备类型分布图
+        initDeviceTypeChart();
+        
+        // 初始化终端类型分布图
+        initTerminalTypeChart();
+    });
+    
+    function initNetworkTopology() {
+        // 创建SVG元素
+        var svg = d3.select("#network-map")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", "0 0 800 500")
+            .attr("preserveAspectRatio", "xMidYMid meet");
+        
+        // 创建箭头标记
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 20)
+            .attr("refY", 0)
+            .attr("orient", "auto")
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#999");
+        
+        // 创建力导向布局
+        var simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(function(d) { return d.id; }).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(400, 250))
+            .force("collision", d3.forceCollide().radius(50));
+        
+        // 创建工具提示
+        var tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+        
+        // 加载拓扑数据
+        $.ajax({
+            url: '/topology/api/topology-data',
+            method: 'GET',
+            success: function(data) {
+                // 创建连接线
+                var link = svg.append("g")
+                    .attr("class", "network-links")
+                    .selectAll("line")
+                    .data(data.links)
+                    .enter().append("line")
+                    .attr("stroke-width", 2);
+                
+                // 创建节点容器
+                var node = svg.append("g")
+                    .attr("class", "network-nodes")
+                    .selectAll("g")
+                    .data(data.nodes)
+                    .enter().append("g")
+                    .call(d3.drag()
+                        .on("start", dragstarted)
+                        .on("drag", dragged)
+                        .on("end", dragended));
+                
+                // 创建节点圆圈
+                node.append("circle")
+                    .attr("r", function(d) {
+                        return d.type === "router" ? 20 : 
+                               d.type === "switch" && d.name.includes("汇聚") ? 15 : 
+                               d.type === "switch" ? 12 : 10;
+                    })
+                    .attr("fill", function(d) {
+                        return d.type === "router" ? "#e74c3c" : 
+                               d.type === "switch" && d.name.includes("汇聚") ? "#3498db" : 
+                               d.type === "switch" ? "#2ecc71" : "#1abc9c";
+                    });
+                
+                // 创建节点图标
+                node.append("text")
+                    .attr("class", "fa")
+                    .attr("text-anchor", "middle")
+                    .attr("dominant-baseline", "central")
+                    .attr("fill", "white")
+                    .attr("font-size", function(d) {
+                        return d.type === "router" ? "12px" : 
+                               d.type === "switch" ? "10px" : "8px";
+                    })
+                    .text(function(d) {
+                        return d.type === "router" ? "\uf6ff" : 
+                               d.type === "switch" ? "\uf6ff" : "\uf1eb";
+                    });
+                
+                // 添加节点交互
+                node.on("mouseover", function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html("<strong>" + d.name + "</strong><br/>" +
+                               "类型: " + (d.type === "router" ? "路由器" : 
+                                          d.type === "switch" ? "交换机" : "无线AP") + "<br/>" +
+                               "IP: " + d.ip + "<br/>" +
+                               "位置: " + d.location)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                })
+                .on("click", function(event, d) {
+                    showDeviceDetails(d.id);
+                });
+                
+                // 设置力导向布局
+                simulation.nodes(data.nodes)
+                    .on("tick", ticked);
+                
+                simulation.force("link")
+                    .links(data.links);
+                
+                // 处理布局更新
+                function ticked() {
+                    link
+                        .attr("x1", function(d) { return d.source.x; })
+                        .attr("y1", function(d) { return d.source.y; })
+                        .attr("x2", function(d) { return d.target.x; })
+                        .attr("y2", function(d) { return d.target.y; });
+                    
+                    node.attr("transform", function(d) {
+                        return "translate(" + d.x + "," + d.y + ")";
+                    });
+                }
+                
+                // 拖拽功能
+                function dragstarted(event, d) {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+                
+                function dragged(event, d) {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                }
+                
+                function dragended(event, d) {
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }
+            },
+            error: function(error) {
+                console.error("获取拓扑数据失败:", error);
+                $("#network-map").html('<div class="alert alert-danger">获取拓扑数据失败</div>');
+            }
+        });
+    }
+    
+    function showDeviceDetails(deviceId) {
+        $.ajax({
+            url: '/topology/api/device-details/' + deviceId,
+            method: 'GET',
+            success: function(data) {
+                // 创建设备详情模态框
+                var modalHtml = `
+                <div class="modal fade" id="deviceDetailModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">设备详情: ${data.name}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="row">
+                          <div class="col-md-6">
+                            <p><strong>ID:</strong> ${data.id}</p>
+                            <p><strong>设备类型:</strong> ${data.type === 'router' ? '路由器' : data.type === 'switch' ? '交换机' : '无线AP'}</p>
+                            <p><strong>IP地址:</strong> ${data.ip_address}</p>
+                            <p><strong>位置:</strong> ${data.location}</p>
+                          </div>
+                          <div class="col-md-6">
+                            <p><strong>状态:</strong> ${data.status === 'online' ? '<span class="badge bg-success">在线</span>' : '<span class="badge bg-danger">离线</span>'}</p>
+                            <p><strong>连接的终端数:</strong> ${data.connected_terminals}</p>
+                            ${data.port_count > 0 ? `
+                            <p><strong>端口数量:</strong> ${data.port_count}</p>
+                            <p><strong>活动端口:</strong> ${data.active_ports}</p>
+                            <p><strong>端口利用率:</strong> 
+                              <div class="progress">
+                                <div class="progress-bar ${data.port_utilization < 30 ? 'bg-success' : data.port_utilization < 70 ? 'bg-warning' : 'bg-danger'}" 
+                                     role="progressbar" style="width: ${data.port_utilization}%" 
+                                     aria-valuenow="${data.port_utilization}" aria-valuemin="0" aria-valuemax="100">
+                                  ${data.port_utilization}%
+                                </div>
+                              </div>
+                            </p>
+                            ` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        <a href="/device/view/${data.id}" class="btn btn-primary">查看详情</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                `;
+                
+                // 显示模态框
+                if ($("#deviceDetailModal").length) {
+                    $("#deviceDetailModal").remove();
+                }
+                $("body").append(modalHtml);
+                var modal = new bootstrap.Modal(document.getElementById('deviceDetailModal'));
+                modal.show();
+            },
+            error: function(error) {
+                console.error("获取设备详情失败:", error);
+            }
+        });
+    }
+    
+    function loadLocationStatistics() {
+        $.ajax({
+            url: '/dashboard/api/location-statistics',
+            method: 'GET',
+            success: function(data) {
+                // 清空容器
+                $("#location-distribution").empty();
+                
+                // 生成区域卡片
+                data.forEach(function(location) {
+                    var cardHtml = `
+                    <div class="col-md-4">
+                        <div class="location-card">
+                            <div class="location-header">${location.location}</div>
+                            <div class="location-body">
+                                <div class="stats-grid">
+                                    <div class="stats-item">
+                                        <div class="stats-value">${location.device_count}</div>
+                                        <div class="stats-label">设备数量</div>
+                                    </div>
+                                    <div class="stats-item">
+                                        <div class="stats-value">${location.terminal_count}</div>
+                                        <div class="stats-label">终端数量</div>
+                                    </div>
+                                    <div class="stats-item">
+                                        <div class="stats-value">${location.in_traffic} Mbps</div>
+                                        <div class="stats-label">入站流量</div>
+                                    </div>
+                                    <div class="stats-item">
+                                        <div class="stats-value">${location.out_traffic} Mbps</div>
+                                        <div class="stats-label">出站流量</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                    $("#location-distribution").append(cardHtml);
+                });
+            },
+            error: function(error) {
+                console.error("获取区域统计失败:", error);
+            }
+        });
+    }
+    
+    function initDeviceTypeChart() {
+        var deviceChart = echarts.init(document.getElementById('device-type-chart'));
+        
+        var option = {
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                data: ['路由器', '交换机', '无线AP']
+            },
+            series: [
+                {
+                    name: '设备类型',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    avoidLabelOverlap: false,
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '18',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: [
+                        {value: {{ router_count }}, name: '路由器', itemStyle: {color: '#e74c3c'}},
+                        {value: {{ switch_count }}, name: '交换机', itemStyle: {color: '#3498db'}},
+                        {value: {{ wireless_count }}, name: '无线AP', itemStyle: {color: '#1abc9c'}}
+                    ]
+                }
+            ]
+        };
+        
+        deviceChart.setOption(option);
+        
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            deviceChart.resize();
+        });
+    }
+    
+    function initTerminalTypeChart() {
+        var terminalChart = echarts.init(document.getElementById('terminal-type-chart'));
+        
+        var option = {
+            tooltip: {
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                data: ['PC', '移动设备', 'IoT设备']
+            },
+            series: [
+                {
+                    name: '终端类型',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    avoidLabelOverlap: false,
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '18',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: [
+                        {value: {{ pc_count }}, name: 'PC', itemStyle: {color: '#f39c12'}},
+                        {value: {{ mobile_count }}, name: '移动设备', itemStyle: {color: '#9b59b6'}},
+                        {value: {{ iot_count }}, name: 'IoT设备', itemStyle: {color: '#27ae60'}}
+                    ]
+                }
+            ]
+        };
+        
+        terminalChart.setOption(option);
+        
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            terminalChart.resize();
+        });
+    }
+</script>
+{% endblock %} 

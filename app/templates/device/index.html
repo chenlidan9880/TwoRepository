@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/device-manager.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid dashboard-container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-server me-2"></i>设备管理</h1>
+            <p class="text-muted">管理校园网络的所有网络设备</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('device.add') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-1"></i> 添加设备
+            </a>
+        </div>
+    </div>
+
+    <!-- 设备统计卡片 -->
+    <div class="row stats-row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card bg-gradient-primary">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>设备总数</h5>
+                        <h2>{{ devices|length }}</h2>
+                    </div>
+                </div>
+                <div class="stat-card-progress">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card bg-gradient-success">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>在线设备</h5>
+                        <h2>{{ devices|selectattr('status', 'equalto', 'online')|list|length }}</h2>
+                    </div>
+                </div>
+                <div class="stat-card-progress">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: {{ (devices|selectattr('status', 'equalto', 'online')|list|length / devices|length * 100)|round if devices|length > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card bg-gradient-warning">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-wifi"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>无线设备</h5>
+                        <h2>{{ devices|selectattr('device_type', 'equalto', 'wireless')|list|length }}</h2>
+                    </div>
+                </div>
+                <div class="stat-card-progress">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: {{ (devices|selectattr('device_type', 'equalto', 'wireless')|list|length / devices|length * 100)|round if devices|length > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card bg-gradient-danger">
+                <div class="stat-card-body">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-card-info">
+                        <h5>紧急告警设备</h5>
+                        <h2>{{ devices|selectattr('critical_alerts', 'defined')|selectattr('critical_alerts', 'gt', 0)|list|length }}</h2>
+                    </div>
+                </div>
+                <div class="stat-card-progress">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: {{ (devices|selectattr('critical_alerts', 'defined')|selectattr('critical_alerts', 'gt', 0)|list|length / devices|length * 100)|round if devices|length > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备过滤栏 -->
+    <div class="filter-container">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <div class="d-flex flex-wrap">
+                            <div class="filter-item me-3 mb-2">
+                                <label for="typeFilter" class="visually-hidden">设备类型</label>
+                                <select id="typeFilter" class="form-select form-select-sm device-filter" data-filter="type" aria-label="设备类型筛选">
+                                    <option value="">所有类型</option>
+                                    <option value="router">路由器</option>
+                                    <option value="switch">交换机</option>
+                                    <option value="wireless">无线设备</option>
+                                    <option value="server">服务器</option>
+                                </select>
+                            </div>
+                            <div class="filter-item me-3 mb-2">
+                                <label for="statusFilter" class="visually-hidden">设备状态</label>
+                                <select id="statusFilter" class="form-select form-select-sm device-filter" data-filter="status" aria-label="设备状态筛选">
+                                    <option value="">所有状态</option>
+                                    <option value="online">在线</option>
+                                    <option value="offline">离线</option>
+                                </select>
+                            </div>
+                            <div class="filter-item me-3 mb-2">
+                                <label for="locationFilter" class="visually-hidden">设备位置</label>
+                                <select id="locationFilter" class="form-select form-select-sm device-filter" data-filter="location" aria-label="设备位置筛选">
+                                    <option value="">所有位置</option>
+                                    <!-- 动态生成位置选项 -->
+                                </select>
+                            </div>
+                            <div class="filter-item me-3 mb-2">
+                                <label for="terminalCountFilter" class="visually-hidden">终端数量</label>
+                                <select id="terminalCountFilter" class="form-select form-select-sm device-filter" data-filter="terminal-count" aria-label="终端数量筛选">
+                                    <option value="">所有终端数量</option>
+                                    <option value="0">0 台终端</option>
+                                    <option value="1-9">1-9 台终端</option>
+                                    <option value="10-19">10-19 台终端</option>
+                                    <option value="20+">20+ 台终端</option>
+                                </select>
+                            </div>
+                            <div class="filter-item mb-2">
+                                <span class="text-muted" id="filteredCount">显示 {{ devices|length }} / {{ devices|length }} 个设备</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" class="form-control form-control-sm" id="deviceSearch" placeholder="搜索设备...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备卡片网格 -->
+    <div class="device-grid">
+        <div class="row" id="deviceGrid">
+            {% for device in devices %}
+            <div class="col-xl-3 col-md-4 col-sm-6 mb-4 device-item" 
+                data-type="{{ device.device_type|lower }}" 
+                data-status="{{ device.status }}" 
+                data-location="{{ device.location }}"
+                data-terminal-count="{{ device.connected_terminals_count if device.connected_terminals_count is defined else 0 }}">
+                <div class="device-card shadow-hover">
+                    <div class="device-header">
+                        <div class="device-icon" style="background-color: 
+                            {% if device.device_type == 'Router' %}var(--primary-color)
+                            {% elif device.device_type == 'Switch' %}var(--success-color)
+                            {% elif device.device_type == 'Server' %}var(--warning-color)
+                            {% else %}var(--info-color){% endif %}">
+                            {% if device.device_type == 'Router' %}
+                            <i class="fas fa-project-diagram"></i>
+                            {% elif device.device_type == 'Switch' %}
+                            <i class="fas fa-network-wired"></i>
+                            {% elif device.device_type == 'Server' %}
+                            <i class="fas fa-server"></i>
+                            {% else %}
+                            <i class="fas fa-wifi"></i>
+                            {% endif %}
+                        </div>
+                        <div class="device-status">
+                            {% if device.status == 'online' %}
+                            <span class="status-badge status-online" title="在线"></span>
+                            {% else %}
+                            <span class="status-badge status-offline" title="离线"></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="device-body">
+                        <h5 class="device-name">{{ device.name }}</h5>
+                        <div class="device-info">
+                            <p><i class="fas fa-map-marker-alt"></i> {{ device.location or '未知位置' }}</p>
+                            <p><i class="fas fa-network-wired"></i> {{ device.ip_address }}</p>
+                            <div class="device-terminals">
+                                <i class="fas fa-laptop"></i> {{ device.connected_terminals_count if device.connected_terminals_count is defined else 0 }} 台终端
+                            </div>
+                        </div>
+                    </div>
+                    <div class="device-footer">
+                        <a href="{{ url_for('device.view', id=device.id) }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> 查看
+                        </a>
+                        <a href="{{ url_for('device.edit', id=device.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit"></i> 编辑
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> 当前没有设备。点击 <a href="{{ url_for('device.add') }}">添加设备</a> 开始管理您的设备。
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/device-manager.js') }}"></script>
+{% endblock %} 

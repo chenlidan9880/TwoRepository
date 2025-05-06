@@ -1,0 +1,955 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ device.name }} 历史流量数据{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .history-chart {
+        height: 400px;
+        margin-bottom: 20px;
+    }
+    
+    .info-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #4e73df;
+    }
+    
+    .traffic-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #1cc88a;
+    }
+    
+    .filter-card {
+        margin-bottom: 20px;
+        border-left: 4px solid #f6c23e;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .traffic-stat {
+        text-align: center;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        background-color: #fff;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .traffic-stat h3 {
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
+    
+    .traffic-stat p {
+        margin-bottom: 0;
+        color: #6c757d;
+    }
+    
+    .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .status-up {
+        background-color: #1cc88a;
+    }
+    
+    .status-down {
+        background-color: #e74a3b;
+    }
+    
+    .date-range-picker {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.35rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        width: 100%;
+    }
+    
+    .stats-container {
+        margin-bottom: 20px;
+    }
+    
+    .time-period-btn {
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    
+    .chart-option-card {
+        margin-top: 20px;
+    }
+    
+    .export-btn {
+        margin-left: 10px;
+    }
+    
+    .tab-content {
+        padding-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1><i class="fas fa-history"></i> {{ device.name }} 历史流量数据</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group mr-2">
+                <a href="{{ url_for('monitor.realtime', device_id=device.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-chart-area"></i> 实时监控
+                </a>
+                <a href="{{ url_for('monitor.index') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-chart-line"></i> 流量监控
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <!-- 设备信息卡片 -->
+            <div class="card shadow info-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-server"></i> 设备信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备名称</div>
+                        <div class="col-md-8">{{ device.name }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">IP地址</div>
+                        <div class="col-md-8">{{ device.ip_address }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">设备类型</div>
+                        <div class="col-md-8">{{ device.device_type }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">位置</div>
+                        <div class="col-md-8">{{ device.location }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4 detail-label">状态</div>
+                        <div class="col-md-8">
+                            {% if device.status == 'up' %}
+                            <span><span class="status-dot status-up"></span>在线</span>
+                            {% else %}
+                            <span><span class="status-dot status-down"></span>离线</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查询条件卡片 -->
+            <div class="card shadow filter-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-filter"></i> 查询条件</h6>
+                </div>
+                <div class="card-body">
+                    <form id="filter-form">
+                        <div class="form-group">
+                            <label for="time-period">时间范围</label>
+                            <div class="btn-group d-flex flex-wrap" role="group" aria-label="时间范围">
+                                <button type="button" class="btn btn-sm btn-outline-primary time-period-btn" data-value="day">今日</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary time-period-btn" data-value="week">本周</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary time-period-btn" data-value="month">本月</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary time-period-btn" data-value="custom">自定义</button>
+                            </div>
+                        </div>
+                        
+                        <div id="custom-date-range" class="form-group" style="display: none;">
+                            <label for="date-range">自定义日期范围</label>
+                            <input type="text" class="form-control date-range-picker" id="date-range" placeholder="选择日期范围">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="data-type">数据类型</label>
+                            <select class="form-control" id="data-type">
+                                <option value="traffic">流量 (Mbps)</option>
+                                <option value="packets">数据包 (pps)</option>
+                                <option value="errors">错误包</option>
+                                <option value="utilization">带宽利用率 (%)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="time-interval">时间间隔</label>
+                            <select class="form-control" id="time-interval">
+                                <option value="minute">分钟</option>
+                                <option value="hour" selected>小时</option>
+                                <option value="day">天</option>
+                                <option value="week">周</option>
+                            </select>
+                        </div>
+                        
+                        <button type="button" id="apply-filter-btn" class="btn btn-primary">
+                            <i class="fas fa-search"></i> 查询
+                        </button>
+                        <button type="button" id="export-data-btn" class="btn btn-success export-btn">
+                            <i class="fas fa-file-export"></i> 导出数据
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <!-- 流量统计卡片 -->
+            <div class="card shadow traffic-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-chart-bar"></i> 流量统计</h6>
+                </div>
+                <div class="card-body">
+                    <div class="stats-container">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="avg-in-traffic">0 Mbps</h3>
+                                    <p>平均入站流量</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="avg-out-traffic">0 Mbps</h3>
+                                    <p>平均出站流量</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="max-in-traffic">0 Mbps</h3>
+                                    <p>最大入站流量</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="traffic-stat">
+                                    <h3 id="max-out-traffic">0 Mbps</h3>
+                                    <p>最大出站流量</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <ul class="nav nav-tabs" id="traffic-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="traffic-trend-tab" data-toggle="tab" href="#traffic-trend" role="tab">
+                                流量趋势
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="daily-distribution-tab" data-toggle="tab" href="#daily-distribution" role="tab">
+                                每日分布
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="weekly-comparison-tab" data-toggle="tab" href="#weekly-comparison" role="tab">
+                                周对比
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="traffic-tab-content">
+                        <div class="tab-pane fade show active" id="traffic-trend" role="tabpanel">
+                            <div id="history-traffic-chart" class="history-chart"></div>
+                        </div>
+                        <div class="tab-pane fade" id="daily-distribution" role="tabpanel">
+                            <div id="daily-distribution-chart" class="history-chart"></div>
+                        </div>
+                        <div class="tab-pane fade" id="weekly-comparison" role="tabpanel">
+                            <div id="weekly-comparison-chart" class="history-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 数据表格卡片 -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-table"></i> 历史数据表格</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="traffic-data-table" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>入站流量</th>
+                                    <th>出站流量</th>
+                                    <th>入站包数</th>
+                                    <th>出站包数</th>
+                                    <th>入站错误</th>
+                                    <th>出站错误</th>
+                                    <th>带宽利用率</th>
+                                </tr>
+                            </thead>
+                            <tbody id="traffic-data-body">
+                                <!-- 数据将通过JavaScript填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化所有图表
+    const historyChart = echarts.init(document.getElementById('history-traffic-chart'));
+    const dailyDistributionChart = echarts.init(document.getElementById('daily-distribution-chart'));
+    const weeklyComparisonChart = echarts.init(document.getElementById('weekly-comparison-chart'));
+    
+    // 设置默认时间范围（今日）
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date();
+    let currentTimePeriod = 'day';
+    
+    // 时间范围按钮事件
+    document.querySelectorAll('.time-period-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // 移除所有按钮的活动状态
+            document.querySelectorAll('.time-period-btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            
+            // 设置当前按钮为活动状态
+            this.classList.remove('btn-outline-primary');
+            this.classList.add('btn-primary');
+            
+            // 获取选中的时间范围
+            currentTimePeriod = this.dataset.value;
+            
+            // 如果是自定义，显示日期选择器
+            if (currentTimePeriod === 'custom') {
+                document.getElementById('custom-date-range').style.display = 'block';
+            } else {
+                document.getElementById('custom-date-range').style.display = 'none';
+                
+                // 设置时间范围
+                const now = new Date();
+                endDate = new Date();
+                
+                switch(currentTimePeriod) {
+                    case 'day':
+                        startDate = new Date(now);
+                        startDate.setHours(0, 0, 0, 0);
+                        break;
+                    case 'week':
+                        startDate = new Date(now);
+                        startDate.setDate(now.getDate() - now.getDay());
+                        startDate.setHours(0, 0, 0, 0);
+                        break;
+                    case 'month':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
+                }
+            }
+        });
+    });
+    
+    // 默认选中"今日"按钮
+    document.querySelector('.time-period-btn[data-value="day"]').click();
+    
+    // 应用过滤按钮事件
+    document.getElementById('apply-filter-btn').addEventListener('click', function() {
+        fetchHistoricalData();
+    });
+    
+    // 导出数据按钮事件
+    document.getElementById('export-data-btn').addEventListener('click', function() {
+        exportToCSV();
+    });
+    
+    // 图表选项切换事件
+    document.querySelectorAll('#traffic-tabs a').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            $(this).tab('show');
+            
+            // 重新调整图表大小
+            window.setTimeout(() => {
+                historyChart.resize();
+                dailyDistributionChart.resize();
+                weeklyComparisonChart.resize();
+            }, 200);
+        });
+    });
+    
+    // 获取历史数据并绘制图表
+    function fetchHistoricalData() {
+        // 在实际项目中，这里会调用API获取历史数据
+        // 这里使用模拟数据进行演示
+        
+        // 获取查询参数
+        const dataType = document.getElementById('data-type').value;
+        const timeInterval = document.getElementById('time-interval').value;
+        
+        // 生成时间序列
+        const timeSeries = generateTimeSeries(startDate, endDate, timeInterval);
+        
+        // 模拟获取数据
+        const historyData = generateMockData(timeSeries, dataType);
+        
+        // 更新统计数据
+        updateStatistics(historyData);
+        
+        // 绘制趋势图
+        drawTrendChart(timeSeries, historyData);
+        
+        // 绘制每日分布图
+        drawDailyDistributionChart(historyData);
+        
+        // 绘制周对比图
+        drawWeeklyComparisonChart(historyData);
+        
+        // 填充数据表格
+        populateDataTable(timeSeries, historyData);
+    }
+    
+    // 生成时间序列
+    function generateTimeSeries(start, end, interval) {
+        const result = [];
+        let current = new Date(start);
+        
+        while (current <= end) {
+            result.push(new Date(current));
+            
+            switch(interval) {
+                case 'minute':
+                    current.setMinutes(current.getMinutes() + 5);
+                    break;
+                case 'hour':
+                    current.setHours(current.getHours() + 1);
+                    break;
+                case 'day':
+                    current.setDate(current.getDate() + 1);
+                    break;
+                case 'week':
+                    current.setDate(current.getDate() + 7);
+                    break;
+            }
+        }
+        
+        return result;
+    }
+    
+    // 生成模拟数据
+    function generateMockData(timeSeries, dataType) {
+        const inData = [];
+        const outData = [];
+        const inPacketsData = [];
+        const outPacketsData = [];
+        const inErrorsData = [];
+        const outErrorsData = [];
+        const utilizationData = [];
+        
+        for (const time of timeSeries) {
+            // 工作时间流量增加
+            const hour = time.getHours();
+            const isWorkingHour = hour >= 9 && hour <= 17;
+            const isWeekend = time.getDay() === 0 || time.getDay() === 6;
+            
+            let baseFactor = isWorkingHour ? 1.5 : 0.8;
+            if (isWeekend) baseFactor *= 0.6;
+            
+            // 生成随机流量数据 (Mbps)
+            const inTraffic = Math.random() * 200 * baseFactor + 50;
+            const outTraffic = Math.random() * 150 * baseFactor + 30;
+            
+            inData.push(inTraffic);
+            outData.push(outTraffic);
+            
+            // 模拟数据包数据 (pps)
+            inPacketsData.push(inTraffic * 100);
+            outPacketsData.push(outTraffic * 100);
+            
+            // 模拟错误包数据
+            inErrorsData.push(Math.random() * 5);
+            outErrorsData.push(Math.random() * 3);
+            
+            // 模拟带宽利用率
+            utilizationData.push(((inTraffic + outTraffic) / 1000) * 100);
+        }
+        
+        return {
+            inTraffic: inData,
+            outTraffic: outData,
+            inPackets: inPacketsData,
+            outPackets: outPacketsData,
+            inErrors: inErrorsData,
+            outErrors: outErrorsData,
+            utilization: utilizationData
+        };
+    }
+    
+    // 更新统计信息
+    function updateStatistics(data) {
+        // 计算平均值
+        const avgInTraffic = data.inTraffic.reduce((a, b) => a + b, 0) / data.inTraffic.length;
+        const avgOutTraffic = data.outTraffic.reduce((a, b) => a + b, 0) / data.outTraffic.length;
+        
+        // 计算最大值
+        const maxInTraffic = Math.max(...data.inTraffic);
+        const maxOutTraffic = Math.max(...data.outTraffic);
+        
+        // 更新UI
+        document.getElementById('avg-in-traffic').textContent = avgInTraffic.toFixed(2) + ' Mbps';
+        document.getElementById('avg-out-traffic').textContent = avgOutTraffic.toFixed(2) + ' Mbps';
+        document.getElementById('max-in-traffic').textContent = maxInTraffic.toFixed(2) + ' Mbps';
+        document.getElementById('max-out-traffic').textContent = maxOutTraffic.toFixed(2) + ' Mbps';
+    }
+    
+    // 绘制趋势图
+    function drawTrendChart(timeSeries, data) {
+        const dataType = document.getElementById('data-type').value;
+        let seriesData = [];
+        let yAxisLabel = '';
+        
+        switch(dataType) {
+            case 'traffic':
+                seriesData = [
+                    {
+                        name: '入站流量',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        areaStyle: { opacity: 0.3 },
+                        itemStyle: { color: '#1cc88a' },
+                        data: timeSeries.map((time, i) => [time, data.inTraffic[i]])
+                    },
+                    {
+                        name: '出站流量',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        areaStyle: { opacity: 0.3 },
+                        itemStyle: { color: '#4e73df' },
+                        data: timeSeries.map((time, i) => [time, data.outTraffic[i]])
+                    }
+                ];
+                yAxisLabel = 'Mbps';
+                break;
+                
+            case 'packets':
+                seriesData = [
+                    {
+                        name: '入站数据包',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        itemStyle: { color: '#f6c23e' },
+                        data: timeSeries.map((time, i) => [time, data.inPackets[i]])
+                    },
+                    {
+                        name: '出站数据包',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        itemStyle: { color: '#e74a3b' },
+                        data: timeSeries.map((time, i) => [time, data.outPackets[i]])
+                    }
+                ];
+                yAxisLabel = 'pps';
+                break;
+                
+            case 'errors':
+                seriesData = [
+                    {
+                        name: '入站错误包',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        itemStyle: { color: '#e74a3b' },
+                        data: timeSeries.map((time, i) => [time, data.inErrors[i]])
+                    },
+                    {
+                        name: '出站错误包',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        itemStyle: { color: '#f6c23e' },
+                        data: timeSeries.map((time, i) => [time, data.outErrors[i]])
+                    }
+                ];
+                yAxisLabel = 'pps';
+                break;
+                
+            case 'utilization':
+                seriesData = [
+                    {
+                        name: '带宽利用率',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { width: 2 },
+                        areaStyle: { opacity: 0.3 },
+                        itemStyle: { color: '#36b9cc' },
+                        markLine: {
+                            silent: true,
+                            data: [
+                                {
+                                    yAxis: 70,
+                                    lineStyle: { color: '#e74a3b' },
+                                    label: { formatter: '警戒线 (70%)' }
+                                }
+                            ]
+                        },
+                        data: timeSeries.map((time, i) => [time, data.utilization[i]])
+                    }
+                ];
+                yAxisLabel = '%';
+                break;
+        }
+        
+        const option = {
+            title: {
+                text: getChartTitle(dataType),
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#6a7985'
+                    }
+                },
+                formatter: function(params) {
+                    const time = new Date(params[0].value[0]).toLocaleString();
+                    let result = `${time}<br>`;
+                    
+                    params.forEach(item => {
+                        const color = item.color;
+                        const name = item.seriesName;
+                        let value = item.value[1];
+                        
+                        if (dataType === 'traffic') {
+                            value = value.toFixed(2) + ' Mbps';
+                        } else if (dataType === 'packets') {
+                            value = Math.round(value) + ' pps';
+                        } else if (dataType === 'utilization') {
+                            value = value.toFixed(2) + ' %';
+                        } else {
+                            value = value.toFixed(2) + ' pps';
+                        }
+                        
+                        result += `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span> ${name}: ${value}<br>`;
+                    });
+                    
+                    return result;
+                }
+            },
+            legend: {
+                data: seriesData.map(item => item.name),
+                top: 'bottom'
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '10%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'time',
+                splitLine: {
+                    show: false
+                }
+            },
+            yAxis: {
+                type: 'value',
+                boundaryGap: [0, '10%'],
+                splitLine: {
+                    show: true
+                },
+                axisLabel: {
+                    formatter: `{value} ${yAxisLabel}`
+                }
+            },
+            dataZoom: [
+                {
+                    type: 'inside',
+                    start: 0,
+                    end: 100
+                },
+                {
+                    start: 0,
+                    end: 100
+                }
+            ],
+            series: seriesData
+        };
+        
+        historyChart.setOption(option);
+    }
+    
+    // 绘制每日分布图
+    function drawDailyDistributionChart(data) {
+        // 按小时统计数据
+        const hours = Array.from({length: 24}, (_, i) => i);
+        const inTrafficByHour = Array(24).fill(0);
+        const outTrafficByHour = Array(24).fill(0);
+        
+        // 这里实际应该根据历史数据按小时统计，这里用模拟数据
+        hours.forEach(hour => {
+            // 工作时间流量增加
+            const isWorkingHour = hour >= 9 && hour <= 17;
+            const factor = isWorkingHour ? 1.5 : 0.8;
+            
+            inTrafficByHour[hour] = Math.random() * 200 * factor + 50;
+            outTrafficByHour[hour] = Math.random() * 150 * factor + 30;
+        });
+        
+        const option = {
+            title: {
+                text: '每日流量分布',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {
+                data: ['入站流量', '出站流量'],
+                top: 'bottom'
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '10%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: hours.map(h => h + '时'),
+                axisTick: {
+                    alignWithLabel: true
+                }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: '{value} Mbps'
+                }
+            },
+            series: [
+                {
+                    name: '入站流量',
+                    type: 'bar',
+                    barWidth: '40%',
+                    itemStyle: {
+                        color: '#1cc88a'
+                    },
+                    data: inTrafficByHour
+                },
+                {
+                    name: '出站流量',
+                    type: 'bar',
+                    barWidth: '40%',
+                    itemStyle: {
+                        color: '#4e73df'
+                    },
+                    data: outTrafficByHour
+                }
+            ]
+        };
+        
+        dailyDistributionChart.setOption(option);
+    }
+    
+    // 绘制周对比图
+    function drawWeeklyComparisonChart(data) {
+        // 模拟数据：过去4周的每日平均流量
+        const weeks = ['上上上周', '上上周', '上周', '本周'];
+        const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        
+        // 生成模拟数据
+        const weeklyData = weeks.map(week => {
+            return days.map(day => {
+                // 工作日流量高于周末
+                const isWeekend = day === '周六' || day === '周日';
+                const factor = isWeekend ? 0.6 : 1.2;
+                
+                return Math.random() * 150 * factor + 50;
+            });
+        });
+        
+        const option = {
+            title: {
+                text: '过去4周流量对比',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {
+                data: weeks,
+                top: 'bottom'
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '10%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: days
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: '{value} Mbps'
+                }
+            },
+            series: weeks.map((week, i) => {
+                return {
+                    name: week,
+                    type: 'line',
+                    smooth: true,
+                    emphasis: {
+                        focus: 'series'
+                    },
+                    data: weeklyData[i]
+                };
+            })
+        };
+        
+        weeklyComparisonChart.setOption(option);
+    }
+    
+    // 填充数据表格
+    function populateDataTable(timeSeries, data) {
+        const tableBody = document.getElementById('traffic-data-body');
+        tableBody.innerHTML = '';
+        
+        for (let i = 0; i < timeSeries.length; i++) {
+            const row = document.createElement('tr');
+            
+            // 时间
+            const timeCell = document.createElement('td');
+            timeCell.textContent = timeSeries[i].toLocaleString();
+            row.appendChild(timeCell);
+            
+            // 入站流量
+            const inTrafficCell = document.createElement('td');
+            inTrafficCell.textContent = data.inTraffic[i].toFixed(2) + ' Mbps';
+            row.appendChild(inTrafficCell);
+            
+            // 出站流量
+            const outTrafficCell = document.createElement('td');
+            outTrafficCell.textContent = data.outTraffic[i].toFixed(2) + ' Mbps';
+            row.appendChild(outTrafficCell);
+            
+            // 入站包数
+            const inPacketsCell = document.createElement('td');
+            inPacketsCell.textContent = Math.round(data.inPackets[i]) + ' pps';
+            row.appendChild(inPacketsCell);
+            
+            // 出站包数
+            const outPacketsCell = document.createElement('td');
+            outPacketsCell.textContent = Math.round(data.outPackets[i]) + ' pps';
+            row.appendChild(outPacketsCell);
+            
+            // 入站错误
+            const inErrorsCell = document.createElement('td');
+            inErrorsCell.textContent = data.inErrors[i].toFixed(2) + ' pps';
+            row.appendChild(inErrorsCell);
+            
+            // 出站错误
+            const outErrorsCell = document.createElement('td');
+            outErrorsCell.textContent = data.outErrors[i].toFixed(2) + ' pps';
+            row.appendChild(outErrorsCell);
+            
+            // 带宽利用率
+            const utilizationCell = document.createElement('td');
+            utilizationCell.textContent = data.utilization[i].toFixed(2) + ' %';
+            row.appendChild(utilizationCell);
+            
+            tableBody.appendChild(row);
+        }
+        
+        // 初始化DataTables
+        if (!$.fn.DataTable.isDataTable('#traffic-data-table')) {
+            $('#traffic-data-table').DataTable({
+                paging: true,
+                ordering: true,
+                searching: true,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.10.21/i18n/Chinese.json'
+                }
+            });
+        } else {
+            // 刷新数据表格
+            $('#traffic-data-table').DataTable().draw();
+        }
+    }
+    
+    // 导出数据为CSV
+    function exportToCSV() {
+        // 获取表格数据
+        const table = document.getElementById('traffic-data-table');
+        let csv = [];
+        let rows = table.querySelectorAll('tr');
+        
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll('td, th');
+            
+            for (let j = 0; j < cols.length; j++) {
+                // 引用值以处理包含逗号的字段
+                row.push('"' + cols[j].innerText + '"');
+            }
+            
+            csv.push(row.join(','));
+        }
+        
+        // 下载CSV文件
+        const csvContent = 'data:text/csv;charset=utf-8,' + csv.join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `traffic_history_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    // 根据数据类型获取图表标题
+    function getChartTitle(dataType) {
+        switch(dataType) {
+            case 'traffic': return '历史流量趋势 (Mbps)';
+            case 'packets': return '历史数据包趋势 (pps)';
+            case 'errors': return '历史错误包趋势';
+            case 'utilization': return '历史带宽利用率 (%)';
+            default: return '历史数据趋势';
+        }
+    }
+    
+    // 初始加载数据
+    fetchHistoricalData();
+    
+    // 窗口大小改变时重绘图表
+    window.addEventListener('resize', function() {
+        historyChart.resize();
+        dailyDistributionChart.resize();
+        weeklyComparisonChart.resize();
+    });
+});
+</script>
+{% endblock %} 

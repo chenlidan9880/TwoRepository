@@ -1,0 +1,1039 @@
+{% extends 'base.html' %}
+
+{% block title %}3D网络拓扑 - {{ super() }}{% endblock %}
+
+{% block head %}
+<style>
+    .container-3d {
+        position: relative;
+        width: 100%;
+        height: 700px;
+        background-color: #000;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    #network-3d {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .controls-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        width: 250px;
+    }
+    
+    .control-item {
+        margin-bottom: 15px;
+    }
+    
+    .control-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .device-info {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        max-width: 300px;
+        display: none;
+    }
+    
+    .device-title {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    .device-detail {
+        margin-bottom: 3px;
+    }
+    
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-right: 15px;
+        margin-bottom: 5px;
+    }
+    
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+</style>
+<!-- 引入Three.js库 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script>
+    // 检查CDN加载是否成功
+    window.addEventListener('load', function() {
+        if (typeof THREE === 'undefined') {
+            console.error('CDN加载Three.js失败，尝试使用备用方案');
+            // 创建备用脚本标签
+            var backup = document.createElement('script');
+            backup.src = "{{ url_for('static', filename='js/three.min.js') }}";
+            document.head.appendChild(backup);
+        }
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script>
+    // 检查CDN加载OrbitControls是否成功
+    window.addEventListener('load', function() {
+        if (typeof THREE.OrbitControls === 'undefined') {
+            console.error('CDN加载OrbitControls失败，尝试使用备用方案');
+            // 创建备用脚本标签
+            var backup = document.createElement('script');
+            backup.src = "{{ url_for('static', filename='js/OrbitControls.js') }}";
+            document.head.appendChild(backup);
+        }
+    });
+</script>
+<!-- 添加调试脚本 -->
+<script src="{{ url_for('static', filename='js/topology-debug.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-cubes"></i> 3D网络拓扑可视化</h1>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #e74c3c;"></div>
+                            <span>路由器</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #3498db;"></div>
+                            <span>交换机</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #2ecc71;"></div>
+                            <span>无线AP</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #9b59b6;"></div>
+                            <span>终端设备</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="container-3d">
+                    <div id="network-3d"></div>
+                    
+                    <div class="controls-panel">
+                        <h5><i class="fas fa-sliders-h"></i> 控制面板</h5>
+                        
+                        <div class="control-item">
+                            <div class="control-label">设备类型</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-routers" checked>
+                                <label class="form-check-label" for="show-routers">路由器</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-switches" checked>
+                                <label class="form-check-label" for="show-switches">交换机</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-wireless" checked>
+                                <label class="form-check-label" for="show-wireless">无线AP</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-terminals" checked>
+                                <label class="form-check-label" for="show-terminals">终端设备</label>
+                            </div>
+                        </div>
+                        
+                        <div class="control-item">
+                            <div class="control-label">显示选项</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-labels" checked>
+                                <label class="form-check-label" for="show-labels">显示标签</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="show-links" checked>
+                                <label class="form-check-label" for="show-links">显示连接</label>
+                            </div>
+                        </div>
+                        
+                        <div class="control-item">
+                            <div class="control-label">动画效果</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enable-rotation" checked>
+                                <label class="form-check-label" for="enable-rotation">旋转</label>
+                            </div>
+                        </div>
+                        
+                        <div class="control-item">
+                            <div class="control-label">布局方式</div>
+                            <select id="layout-type" class="form-select form-select-sm" title="选择布局方式">
+                                <option value="sphere" selected>球形布局</option>
+                                <option value="hierarchy">层次布局</option>
+                                <option value="force">力导向布局</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-item">
+                            <button id="reset-camera" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="fas fa-sync-alt"></i> 重置视图
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="device-info" id="device-info">
+                        <h5 class="device-title" id="device-name">设备信息</h5>
+                        <div id="device-details"></div>
+                        <div class="mt-3">
+                            <button id="close-info" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-times"></i> 关闭
+                            </button>
+                            <a id="device-link" href="#" class="btn btn-sm btn-primary">
+                                <i class="fas fa-external-link-alt"></i> 查看详情
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> 提示：使用鼠标拖动可旋转视图，滚轮可缩放，双击设备可查看详情。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 全局变量
+    let scene, camera, renderer, controls;
+    let networkNodes = [];
+    let networkLinks = [];
+    let nodesGroup, linksGroup;
+    let raycaster, mouse;
+    let settings = {
+        showRouters: true,
+        showSwitches: true,
+        showWireless: true,
+        showTerminals: true,
+        showLabels: true,
+        showLinks: true,
+        enableRotation: true,
+        layoutType: 'sphere'
+    };
+    
+    // 设备类型颜色
+    const deviceColors = {
+        router: 0xe74c3c,    // 红色
+        switch: 0x3498db,     // 蓝色
+        wireless: 0x2ecc71,   // 绿色
+        terminal: 0x9b59b6    // 紫色
+    };
+    
+    // 设备大小
+    const deviceSizes = {
+        router: 1.2,
+        switch: 1.0,
+        wireless: 0.8,
+        terminal: 0.6
+    };
+    
+    $(document).ready(function() {
+        // 初始化3D场景
+        init3DScene();
+        
+        // 加载拓扑数据
+        loadTopologyData();
+        
+        // 绑定事件处理器
+        bindEventHandlers();
+        
+        // 开始动画
+        animate();
+    });
+    
+    function init3DScene() {
+        const container = document.getElementById('network-3d');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        
+        // 创建场景
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        
+        // 添加环境光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        // 添加定向光
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 20, 10);
+        scene.add(directionalLight);
+        
+        // 创建相机
+        camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+        camera.position.z = 50;
+        
+        // 创建渲染器
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
+        
+        // 添加轨道控制
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 10;
+        controls.maxDistance = 100;
+        
+        // 创建节点组和连接组
+        nodesGroup = new THREE.Group();
+        linksGroup = new THREE.Group();
+        scene.add(nodesGroup);
+        scene.add(linksGroup);
+        
+        // 初始化射线检测器
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        
+        // 添加窗口调整事件
+        window.addEventListener('resize', onWindowResize, false);
+        
+        // 添加鼠标点击事件
+        renderer.domElement.addEventListener('click', onDocumentClick, false);
+        renderer.domElement.addEventListener('dblclick', onDocumentDblClick, false);
+    }
+    
+    function loadTopologyData() {
+        $.ajax({
+            url: '/topology/api/topology-data',
+            method: 'GET',
+            success: function(data) {
+                // 处理节点数据
+                networkNodes = data.nodes;
+                
+                // 处理连接数据
+                networkLinks = data.links;
+                
+                // 调试：输出拓扑数据信息
+                console.log("加载的网络拓扑数据：", {
+                    节点数量: networkNodes.length,
+                    连接数量: networkLinks.length,
+                    节点类型统计: countNodeTypes(networkNodes),
+                    数据示例: {
+                        节点示例: networkNodes.slice(0, 2),
+                        连接示例: networkLinks.slice(0, 2)
+                    }
+                });
+                
+                // 渲染网络拓扑
+                renderTopology();
+            },
+            error: function(error) {
+                console.error("加载拓扑数据失败:", error);
+            }
+        });
+    }
+    
+    // 辅助函数：统计节点类型数量
+    function countNodeTypes(nodes) {
+        const typeCounts = {
+            router: 0,
+            switch: 0,
+            wireless: 0,
+            terminal: 0,
+            other: 0
+        };
+        
+        nodes.forEach(node => {
+            if (typeCounts.hasOwnProperty(node.type)) {
+                typeCounts[node.type]++;
+            } else {
+                typeCounts.other++;
+            }
+        });
+        
+        return typeCounts;
+    }
+    
+    // 辅助函数：诊断力导向布局问题
+    function diagnoseForceLayout(nodes, links) {
+        console.log("========= 力导向布局诊断 =========");
+        
+        // 检查节点ID格式
+        const nodeIdTypes = {};
+        nodes.forEach(node => {
+            const idType = typeof node.id;
+            nodeIdTypes[idType] = (nodeIdTypes[idType] || 0) + 1;
+        });
+        console.log("节点ID类型统计:", nodeIdTypes);
+        
+        // 检查链接格式
+        const linkSourceTypes = {};
+        const linkTargetTypes = {};
+        links.forEach(link => {
+            const sourceType = typeof link.source;
+            const targetType = typeof link.target;
+            linkSourceTypes[sourceType] = (linkSourceTypes[sourceType] || 0) + 1;
+            linkTargetTypes[targetType] = (linkTargetTypes[targetType] || 0) + 1;
+        });
+        console.log("链接源节点类型统计:", linkSourceTypes);
+        console.log("链接目标节点类型统计:", linkTargetTypes);
+        
+        // 检查链接引用的有效性
+        let invalidSourceLinks = 0;
+        let invalidTargetLinks = 0;
+        const nodeIds = new Set(nodes.map(n => n.id));
+        
+        links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            
+            if (!nodeIds.has(sourceId)) {
+                invalidSourceLinks++;
+                console.warn("发现无效的源节点引用:", link);
+            }
+            
+            if (!nodeIds.has(targetId)) {
+                invalidTargetLinks++;
+                console.warn("发现无效的目标节点引用:", link);
+            }
+        });
+        
+        console.log("无效的源节点引用数量:", invalidSourceLinks);
+        console.log("无效的目标节点引用数量:", invalidTargetLinks);
+        console.log("========= 诊断结束 =========");
+        
+        return { invalidSourceLinks, invalidTargetLinks };
+    }
+    
+    function renderTopology() {
+        // 清除现有节点和连接
+        clearTopology();
+        
+        // 检查数据有效性
+        if (!networkNodes || !networkNodes.length) {
+            console.error("没有可用的节点数据");
+            return;
+        }
+        
+        if (!networkLinks || !networkLinks.length) {
+            console.warn("没有可用的连接数据");
+        }
+        
+        console.log("开始渲染拓扑图，布局类型:", settings.layoutType);
+        
+        // 过滤节点
+        const filteredNodes = networkNodes.filter(node => {
+            if (!node.type) {
+                console.warn("节点缺少类型属性:", node);
+                return true; // 默认显示未知类型节点
+            }
+            
+            if (node.type === 'router' && !settings.showRouters) return false;
+            if (node.type === 'switch' && !settings.showSwitches) return false;
+            if (node.type === 'wireless' && !settings.showWireless) return false;
+            if (node.type === 'terminal' && !settings.showTerminals) return false;
+            return true;
+        });
+        
+        // 创建节点映射，用于连接
+        const nodeMap = {};
+        filteredNodes.forEach(node => {
+            nodeMap[node.id] = node;
+        });
+        
+        // 过滤连接 - 修改链接过滤逻辑，以正确处理字符串ID和对象引用
+        const filteredLinks = networkLinks.filter(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            return nodeMap[sourceId] && nodeMap[targetId];
+        });
+        
+        console.log("过滤后节点数量:", filteredNodes.length);
+        console.log("过滤后连接数量:", filteredLinks.length);
+        
+        // 应用布局
+        applyLayout(filteredNodes, filteredLinks);
+        
+        // 创建节点
+        filteredNodes.forEach(node => {
+            createNode(node);
+        });
+        
+        // 创建连接
+        if (settings.showLinks) {
+            filteredLinks.forEach(link => {
+                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                
+                const sourceNode = nodeMap[sourceId];
+                const targetNode = nodeMap[targetId];
+                
+                if (sourceNode && targetNode) {
+                    createLink(sourceNode, targetNode);
+                }
+            });
+        }
+    }
+    
+    function clearTopology() {
+        // 清除所有节点
+        while (nodesGroup.children.length > 0) {
+            const object = nodesGroup.children[0];
+            nodesGroup.remove(object);
+        }
+        
+        // 清除所有连接
+        while (linksGroup.children.length > 0) {
+            const object = linksGroup.children[0];
+            linksGroup.remove(object);
+        }
+    }
+    
+    function createNode(node) {
+        try {
+            // 创建球体几何体
+            const size = deviceSizes[node.type] || 0.8;
+            const geometry = new THREE.SphereGeometry(size, 32, 32);
+            
+            // 创建材质
+            const material = new THREE.MeshStandardMaterial({
+                color: deviceColors[node.type] || 0xffffff,
+                roughness: 0.4,
+                metalness: 0.5
+            });
+            
+            // 创建网格
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // 确保节点位置是THREE.Vector3类型
+            if (!(node.position instanceof THREE.Vector3)) {
+                console.warn("节点位置不是Vector3类型:", node);
+                node.position = new THREE.Vector3(
+                    node.position?.x || 0,
+                    node.position?.y || 0,
+                    node.position?.z || 0
+                );
+            }
+            
+            mesh.position.copy(node.position);
+            mesh.userData = node;
+            
+            // 添加到节点组
+            nodesGroup.add(mesh);
+            
+            // 添加标签
+            if (settings.showLabels) {
+                createLabel(node);
+            }
+        } catch (error) {
+            console.error("创建节点时出错:", error, node);
+        }
+    }
+    
+    function createLabel(node) {
+        // 创建canvas
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 64;
+        
+        // 设置字体
+        context.font = 'Bold 24px Arial';
+        context.fillStyle = 'white';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // 绘制文本
+        context.fillText(node.name, 128, 32);
+        
+        // 创建纹理
+        const texture = new THREE.CanvasTexture(canvas);
+        
+        // 创建材质
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true
+        });
+        
+        // 创建精灵
+        const sprite = new THREE.Sprite(material);
+        sprite.position.copy(node.position);
+        sprite.position.y += 1.5;
+        sprite.scale.set(5, 1.5, 1);
+        
+        // 添加到节点组
+        nodesGroup.add(sprite);
+    }
+    
+    function createLink(sourceNode, targetNode) {
+        // 创建几何体
+        const geometry = new THREE.BufferGeometry();
+        
+        // 设置顶点
+        const vertices = new Float32Array([
+            sourceNode.position.x, sourceNode.position.y, sourceNode.position.z,
+            targetNode.position.x, targetNode.position.y, targetNode.position.z
+        ]);
+        
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        
+        // 创建材质
+        const material = new THREE.LineBasicMaterial({
+            color: 0xaaaaaa,
+            transparent: true,
+            opacity: 0.6,
+            linewidth: 1
+        });
+        
+        // 创建线
+        const line = new THREE.Line(geometry, material);
+        
+        // 添加到连接组
+        linksGroup.add(line);
+    }
+    
+    function applyLayout(nodes, links) {
+        const totalNodes = nodes.length;
+        
+        // 诊断力导向布局
+        diagnoseForceLayout(nodes, links);
+        
+        // 根据布局类型应用不同的位置计算
+        switch (settings.layoutType) {
+            case 'sphere':
+                // 球形布局
+                nodes.forEach((node, i) => {
+                    // 使用黄金螺旋算法
+                    const phi = Math.acos(-1 + (2 * i) / totalNodes);
+                    const theta = Math.sqrt(totalNodes * Math.PI) * phi;
+                    
+                    const radius = 20;
+                    node.position = new THREE.Vector3(
+                        radius * Math.cos(theta) * Math.sin(phi),
+                        radius * Math.sin(theta) * Math.sin(phi),
+                        radius * Math.cos(phi)
+                    );
+                });
+                break;
+                
+            case 'hierarchy':
+                // 层次布局
+                const routerNodes = nodes.filter(n => n.type === 'router');
+                const switchNodes = nodes.filter(n => n.type === 'switch');
+                const wirelessNodes = nodes.filter(n => n.type === 'wireless');
+                const terminalNodes = nodes.filter(n => n.type === 'terminal');
+                
+                // 路由器放在顶部
+                routerNodes.forEach((node, i) => {
+                    const angle = (i / routerNodes.length) * Math.PI * 2;
+                    const radius = 5;
+                    node.position = new THREE.Vector3(
+                        radius * Math.cos(angle),
+                        15,
+                        radius * Math.sin(angle)
+                    );
+                });
+                
+                // 交换机放在中间层
+                switchNodes.forEach((node, i) => {
+                    const angle = (i / switchNodes.length) * Math.PI * 2;
+                    const radius = 12;
+                    node.position = new THREE.Vector3(
+                        radius * Math.cos(angle),
+                        5,
+                        radius * Math.sin(angle)
+                    );
+                });
+                
+                // 无线AP放在下层
+                wirelessNodes.forEach((node, i) => {
+                    const angle = (i / wirelessNodes.length) * Math.PI * 2;
+                    const radius = 18;
+                    node.position = new THREE.Vector3(
+                        radius * Math.cos(angle),
+                        -5,
+                        radius * Math.sin(angle)
+                    );
+                });
+                
+                // 终端设备放在底层
+                terminalNodes.forEach((node, i) => {
+                    const angle = (i / terminalNodes.length) * Math.PI * 2;
+                    const radius = 25;
+                    node.position = new THREE.Vector3(
+                        radius * Math.cos(angle),
+                        -15,
+                        radius * Math.sin(angle)
+                    );
+                });
+                break;
+                
+            case 'force':
+                // 力导向布局 (模拟物理模型)
+                console.log("应用力导向布局，节点数量:", nodes.length, "连接数量:", links.length);
+                
+                // 初始随机位置 - 使用更小的初始范围以避免节点分散太远
+                nodes.forEach(node => {
+                    node.position = new THREE.Vector3(
+                        (Math.random() - 0.5) * 10,  // 减小初始随机范围
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 10
+                    );
+                    
+                    // 添加速度属性
+                    node.velocity = new THREE.Vector3(0, 0, 0);
+                });
+                
+                // 创建节点索引映射，提高链接查找效率
+                const nodeMap = {};
+                nodes.forEach(node => {
+                    nodeMap[node.id] = node;
+                });
+                
+                // 增加迭代次数以确保布局收敛
+                const iterations = 300;  // 增加迭代次数
+                const repulsionFactor = 0.1;  // 调整斥力因子
+                const attractionFactor = 0.03;  // 调整引力因子
+                const dampingFactor = 0.9;  // 调整阻尼因子
+                
+                // 计算力导向布局
+                for (let i = 0; i < iterations; i++) {
+                    // 计算斥力 (所有节点互相排斥)
+                    nodes.forEach(node1 => {
+                        nodes.forEach(node2 => {
+                            if (node1 !== node2) {
+                                const dx = node1.position.x - node2.position.x;
+                                const dy = node1.position.y - node2.position.y;
+                                const dz = node1.position.z - node2.position.z;
+                                
+                                const distance = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+                                
+                                // 避免距离过小时产生过大的力
+                                const minDistance = 1.0;
+                                const actualDistance = Math.max(distance, minDistance);
+                                
+                                const force = 1 / (actualDistance * actualDistance);
+                                
+                                // 使用更合适的斥力因子
+                                node1.velocity.x += dx * force * repulsionFactor;
+                                node1.velocity.y += dy * force * repulsionFactor;
+                                node1.velocity.z += dz * force * repulsionFactor;
+                            }
+                        });
+                    });
+                    
+                    // 计算引力 (有连接的节点互相吸引)
+                    links.forEach(link => {
+                        // 获取源节点和目标节点
+                        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                        
+                        const source = nodeMap[sourceId];
+                        const target = nodeMap[targetId];
+                        
+                        if (source && target) {
+                            const dx = source.position.x - target.position.x;
+                            const dy = source.position.y - target.position.y;
+                            const dz = source.position.z - target.position.z;
+                            
+                            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                            
+                            // 避免距离为0导致的问题
+                            if (distance > 0.001) {
+                                // 理想距离为10，引力系数根据实际距离与理想距离的差异调整
+                                const idealDistance = 10;
+                                const factor = (distance - idealDistance) * attractionFactor;
+                                
+                                const fx = dx * factor / distance;
+                                const fy = dy * factor / distance;
+                                const fz = dz * factor / distance;
+                                
+                                source.velocity.x -= fx;
+                                source.velocity.y -= fy;
+                                source.velocity.z -= fz;
+                                
+                                target.velocity.x += fx;
+                                target.velocity.y += fy;
+                                target.velocity.z += fz;
+                            }
+                        }
+                    });
+                    
+                    // 应用速度
+                    nodes.forEach(node => {
+                        node.position.x += node.velocity.x;
+                        node.position.y += node.velocity.y;
+                        node.position.z += node.velocity.z;
+                        
+                        // 衰减速度（增加阻尼系数以提高稳定性）
+                        node.velocity.multiplyScalar(dampingFactor);
+                    });
+                    
+                    // 增加中心吸引力，防止节点飞离中心太远
+                    nodes.forEach(node => {
+                        const centerForce = 0.001;
+                        node.velocity.x -= node.position.x * centerForce;
+                        node.velocity.y -= node.position.y * centerForce;
+                        node.velocity.z -= node.position.z * centerForce;
+                    });
+                    
+                    // 增加边界限制，防止节点飞得太远
+                    const bound = 20;
+                    nodes.forEach(node => {
+                        if (Math.abs(node.position.x) > bound) {
+                            node.position.x = Math.sign(node.position.x) * bound;
+                            node.velocity.x = -node.velocity.x * 0.5; // 撞墙反弹，减少速度
+                        }
+                        if (Math.abs(node.position.y) > bound) {
+                            node.position.y = Math.sign(node.position.y) * bound;
+                            node.velocity.y = -node.velocity.y * 0.5;
+                        }
+                        if (Math.abs(node.position.z) > bound) {
+                            node.position.z = Math.sign(node.position.z) * bound;
+                            node.velocity.z = -node.velocity.z * 0.5;
+                        }
+                    });
+                }
+                
+                // 缩放整个布局以确保它在可见范围内
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                let minZ = Infinity, maxZ = -Infinity;
+                
+                nodes.forEach(node => {
+                    minX = Math.min(minX, node.position.x);
+                    maxX = Math.max(maxX, node.position.x);
+                    minY = Math.min(minY, node.position.y);
+                    maxY = Math.max(maxY, node.position.y);
+                    minZ = Math.min(minZ, node.position.z);
+                    maxZ = Math.max(maxZ, node.position.z);
+                });
+                
+                const scaleX = 40 / (maxX - minX || 1);
+                const scaleY = 40 / (maxY - minY || 1);
+                const scaleZ = 40 / (maxZ - minZ || 1);
+                const scale = Math.min(scaleX, scaleY, scaleZ);
+                
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+                const centerZ = (minZ + maxZ) / 2;
+                
+                nodes.forEach(node => {
+                    node.position.x = (node.position.x - centerX) * scale;
+                    node.position.y = (node.position.y - centerY) * scale;
+                    node.position.z = (node.position.z - centerZ) * scale;
+                });
+                
+                console.log("力导向布局计算完成，节点布局已调整");
+                break;
+        }
+    }
+    
+    function onWindowResize() {
+        const container = document.getElementById('network-3d');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+    }
+    
+    function onDocumentClick(event) {
+        // 计算鼠标位置
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        mouse.set(x, y);
+        raycaster.setFromCamera(mouse, camera);
+        
+        // 检测节点对象
+        const intersects = raycaster.intersectObjects(nodesGroup.children);
+        
+        // 隐藏设备信息面板
+        $("#device-info").hide();
+    }
+    
+    function onDocumentDblClick(event) {
+        // 计算鼠标位置
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        mouse.set(x, y);
+        raycaster.setFromCamera(mouse, camera);
+        
+        // 检测节点对象
+        const intersects = raycaster.intersectObjects(nodesGroup.children.filter(
+            child => child instanceof THREE.Mesh));
+        
+        if (intersects.length > 0) {
+            const node = intersects[0].object.userData;
+            
+            if (node && node.id) {
+                // 显示设备信息
+                showDeviceInfo(node);
+            }
+        }
+    }
+    
+    function showDeviceInfo(node) {
+        // 获取设备详细信息
+        $.ajax({
+            url: `/topology/api/device-details/${node.id}`,
+            method: 'GET',
+            success: function(data) {
+                // 更新设备名称
+                $("#device-name").text(data.name);
+                
+                // 更新设备信息
+                let detailsHtml = `
+                    <div class="device-detail"><strong>ID:</strong> ${data.id}</div>
+                    <div class="device-detail"><strong>类型:</strong> ${getDeviceTypeLabel(data.type)}</div>
+                    <div class="device-detail"><strong>IP地址:</strong> ${data.ip_address}</div>
+                    <div class="device-detail"><strong>位置:</strong> ${data.location}</div>
+                    <div class="device-detail"><strong>状态:</strong> 
+                        <span class="${data.status === 'online' ? 'text-success' : 'text-danger'}">
+                            ${data.status === 'online' ? '在线' : '离线'}
+                        </span>
+                    </div>
+                `;
+                
+                if (data.connected_terminals) {
+                    detailsHtml += `<div class="device-detail"><strong>连接终端:</strong> ${data.connected_terminals}</div>`;
+                }
+                
+                if (data.port_count) {
+                    detailsHtml += `
+                        <div class="device-detail"><strong>端口:</strong> ${data.active_ports}/${data.port_count}</div>
+                        <div class="device-detail"><strong>端口利用率:</strong> ${data.port_utilization}%</div>
+                    `;
+                }
+                
+                // 更新设备详细信息
+                $("#device-details").html(detailsHtml);
+                
+                // 更新设备链接
+                $("#device-link").attr("href", `/device/view/${data.id}`);
+                
+                // 显示设备信息面板
+                $("#device-info").show();
+            },
+            error: function(error) {
+                console.error("获取设备详情失败:", error);
+            }
+        });
+    }
+    
+    function getDeviceTypeLabel(type) {
+        switch (type) {
+            case 'router': return '路由器';
+            case 'switch': return '交换机';
+            case 'wireless': return '无线AP';
+            case 'terminal': return '终端设备';
+            default: return '未知设备';
+        }
+    }
+    
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        try {
+            // 更新轨道控制
+            controls.update();
+            
+            // 旋转网络
+            if (settings.enableRotation) {
+                nodesGroup.rotation.y += 0.001;
+                linksGroup.rotation.y += 0.001;
+            }
+            
+            // 渲染场景
+            renderer.render(scene, camera);
+        } catch (error) {
+            console.error("动画循环出错:", error);
+        }
+    }
+    
+    function bindEventHandlers() {
+        // 设备类型显示控制
+        $("#show-routers").change(function() {
+            settings.showRouters = $(this).prop("checked");
+            renderTopology();
+        });
+        
+        $("#show-switches").change(function() {
+            settings.showSwitches = $(this).prop("checked");
+            renderTopology();
+        });
+        
+        $("#show-wireless").change(function() {
+            settings.showWireless = $(this).prop("checked");
+            renderTopology();
+        });
+        
+        $("#show-terminals").change(function() {
+            settings.showTerminals = $(this).prop("checked");
+            renderTopology();
+        });
+        
+        // 显示选项控制
+        $("#show-labels").change(function() {
+            settings.showLabels = $(this).prop("checked");
+            renderTopology();
+        });
+        
+        $("#show-links").change(function() {
+            settings.showLinks = $(this).prop("checked");
+            renderTopology();
+        });
+        
+        // 动画控制
+        $("#enable-rotation").change(function() {
+            settings.enableRotation = $(this).prop("checked");
+        });
+        
+        // 布局控制
+        $("#layout-type").change(function() {
+            settings.layoutType = $(this).val();
+            renderTopology();
+        });
+        
+        // 重置相机按钮
+        $("#reset-camera").click(function() {
+            camera.position.set(0, 0, 50);
+            camera.lookAt(0, 0, 0);
+            controls.reset();
+        });
+        
+        // 关闭设备信息
+        $("#close-info").click(function() {
+            $("#device-info").hide();
+        });
+    }
+</script>
+{% endblock %} 

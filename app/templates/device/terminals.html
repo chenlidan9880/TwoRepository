@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('device.index') }}">设备管理</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('device.view', id=device.id) }}">{{ device.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">连接的终端</li>
+                </ol>
+            </nav>
+            <h1>
+                <i class="fas fa-laptop"></i> {{ device.name }} - 连接的终端设备
+            </h1>
+            <p class="text-muted">共连接 {{ pagination.total }} 台终端设备</p>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">终端列表</h6>
+            <div class="dropdown no-arrow">
+                <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                    <div class="dropdown-header">操作:</div>
+                    <a class="dropdown-item" href="{{ url_for('terminal.index') }}">查看所有终端</a>
+                    <a class="dropdown-item" href="{{ url_for('device.view', id=device.id) }}">返回设备详情</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if terminals %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>主机名</th>
+                            <th>IP地址</th>
+                            <th>MAC地址</th>
+                            <th>设备类型</th>
+                            <th>操作系统</th>
+                            <th>状态</th>
+                            <th>连接端口</th>
+                            <th>连接类型</th>
+                            <th>最后活动</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for terminal in terminals %}
+                        <tr>
+                            <td>{{ terminal.id }}</td>
+                            <td>{{ terminal.hostname }}</td>
+                            <td>{{ terminal.ip_address }}</td>
+                            <td>{{ terminal.mac_address }}</td>
+                            <td>{{ terminal.device_type }}</td>
+                            <td>{{ terminal.os_type }}</td>
+                            <td>
+                                {% if terminal.is_active %}
+                                <span class="badge bg-success">在线</span>
+                                {% else %}
+                                <span class="badge bg-danger">离线</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ terminal.port_number or '未知' }}</td>
+                            <td>{{ terminal.connection_type or '未知' }}</td>
+                            <td>{{ terminal.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>
+                                <a href="{{ url_for('terminal.view', id=terminal.id) }}" class="btn btn-info btn-sm" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-danger btn-sm" onclick="disconnectTerminal({{ device.id }}, {{ terminal.id }})" title="断开连接">
+                                    <i class="fas fa-unlink"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页 -->
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mt-4">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('device.device_terminals', id=device.id, page=pagination.prev_num) }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page in pagination.iter_pages() %}
+                        {% if page %}
+                            {% if page != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('device.device_terminals', id=device.id, page=page) }}">{{ page }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('device.device_terminals', id=device.id, page=pagination.next_num) }}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-laptop fa-5x text-muted mb-3"></i>
+                <p class="lead">当前没有连接到该设备的终端</p>
+                <a href="{{ url_for('terminal.index') }}" class="btn btn-primary mt-3">
+                    <i class="fas fa-list"></i> 查看所有终端设备
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Chinese.json"
+            },
+            "pageLength": 25,
+            "paging": false // 使用我们自己的分页
+        });
+    });
+    
+    function disconnectTerminal(deviceId, terminalId) {
+        if (confirm('确定要断开此终端设备的连接吗？')) {
+            // 创建表单并提交
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/device/' + deviceId + '/terminal/' + terminalId + '/disconnect';
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+{% endblock %} 

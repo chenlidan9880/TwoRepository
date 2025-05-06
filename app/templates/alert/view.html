@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    .detail-card {
+        margin-bottom: 20px;
+    }
+    
+    .alert-info-card {
+        border-left: 4px solid #4e73df;
+    }
+    
+    .alert-details-card {
+        border-left: 4px solid #1cc88a;
+    }
+    
+    .device-info-card {
+        border-left: 4px solid #f6c23e;
+    }
+    
+    .action-card {
+        border-left: 4px solid #e74a3b;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .alert-badge {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 0.25rem;
+        color: white;
+    }
+    
+    .alert-critical {
+        background-color: #e74a3b;
+    }
+    
+    .alert-warning {
+        background-color: #f6c23e;
+    }
+    
+    .alert-info {
+        background-color: #36b9cc;
+    }
+    
+    .alert-description {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 9px;
+        top: 10px;
+        height: calc(100% - 20px);
+        width: 2px;
+        background: #e3e6f0;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 25px;
+    }
+    
+    .timeline-badge {
+        position: absolute;
+        left: -30px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        text-align: center;
+        color: white;
+        background-color: #4e73df;
+    }
+    
+    .timeline-badge i {
+        font-size: 0.7rem;
+        line-height: 20px;
+    }
+    
+    .timeline-content {
+        padding: 15px;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .timeline-date {
+        color: #6c757d;
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('alert.index') }}">告警管理</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">告警详情 #{{ alert.id }}</li>
+                </ol>
+            </nav>
+            <h1>
+                {% if alert.severity == 'critical' %}
+                <i class="fas fa-exclamation-circle text-danger"></i>
+                {% elif alert.severity == 'warning' %}
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                {% else %}
+                <i class="fas fa-info-circle text-info"></i>
+                {% endif %}
+                告警详情 #{{ alert.id }}
+                
+                {% if alert.severity == 'critical' %}
+                <span class="alert-badge alert-critical">紧急</span>
+                {% elif alert.severity == 'warning' %}
+                <span class="alert-badge alert-warning">警告</span>
+                {% else %}
+                <span class="alert-badge alert-info">提示</span>
+                {% endif %}
+                
+                {% if alert.is_handled %}
+                <span class="badge bg-success">已处理</span>
+                {% else %}
+                <span class="badge bg-danger">未处理</span>
+                {% endif %}
+            </h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- 告警信息 -->
+            <div class="card shadow detail-card alert-info-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-bell"></i> 告警信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">告警类型</div>
+                        <div class="col-md-9">{{ alert.alert_type }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">严重程度</div>
+                        <div class="col-md-9">
+                            {% if alert.severity == 'critical' %}
+                            <span class="alert-badge alert-critical">紧急</span>
+                            {% elif alert.severity == 'warning' %}
+                            <span class="alert-badge alert-warning">警告</span>
+                            {% else %}
+                            <span class="alert-badge alert-info">提示</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">告警时间</div>
+                        <div class="col-md-9">{{ alert.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">状态</div>
+                        <div class="col-md-9">
+                            {% if alert.is_handled %}
+                            <span class="text-success">已处理</span>
+                            {% else %}
+                            <span class="text-danger">未处理</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">告警描述</div>
+                        <div class="col-md-9">
+                            <div class="alert-description">
+                                {{ alert.description }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 告警详细信息 -->
+            <div class="card shadow detail-card alert-details-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-file-alt"></i> 详细信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">告警值</div>
+                        <div class="col-md-9">{{ alert.alert_value }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">阈值</div>
+                        <div class="col-md-9">{{ alert.threshold }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">单位</div>
+                        <div class="col-md-9">{{ alert.unit }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">持续时间</div>
+                        <div class="col-md-9">{{ alert.duration }} 分钟</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">告警恢复</div>
+                        <div class="col-md-9">
+                            {% if alert.is_recovered %}
+                            <span class="text-success">已恢复</span>
+                            {% else %}
+                            <span class="text-danger">未恢复</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if alert.is_recovered %}
+                    <div class="row mb-3">
+                        <div class="col-md-3 detail-label">恢复时间</div>
+                        <div class="col-md-9">{{ alert.recovered_at.strftime('%Y-%m-%d %H:%M:%S') if alert.recovered_at else '尚未恢复' }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 告警时间线 -->
+            <div class="card shadow detail-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history"></i> 告警处理记录</h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-badge">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">{{ alert.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                                <div class="timeline-title">告警产生</div>
+                                <p>系统检测到告警条件，生成告警记录</p>
+                            </div>
+                        </div>
+                        
+                        {% if alert.is_read %}
+                        <div class="timeline-item">
+                            <div class="timeline-badge bg-info">
+                                <i class="fas fa-eye"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">{{ alert.read_at.strftime('%Y-%m-%d %H:%M:%S') if alert.read_at else '未知时间' }}</div>
+                                <div class="timeline-title">告警已读</div>
+                                <p>运维人员查看了告警信息</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if alert.is_handled %}
+                        <div class="timeline-item">
+                            <div class="timeline-badge bg-success">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">{{ alert.handled_at.strftime('%Y-%m-%d %H:%M:%S') if alert.handled_at else '未知时间' }}</div>
+                                <div class="timeline-title">告警处理</div>
+                                <p>运维人员已处理告警</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if alert.is_recovered %}
+                        <div class="timeline-item">
+                            <div class="timeline-badge bg-warning">
+                                <i class="fas fa-check-double"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">{{ alert.recovered_at.strftime('%Y-%m-%d %H:%M:%S') if alert.recovered_at else '未知时间' }}</div>
+                                <div class="timeline-title">告警恢复</div>
+                                <p>告警状态已恢复正常</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- 设备信息 -->
+            <div class="card shadow detail-card device-info-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-server"></i> 设备信息</h6>
+                </div>
+                <div class="card-body">
+                    {% for device in devices %}
+                    {% if device.id == alert.device_id %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">设备名称</div>
+                        <div class="col-md-8">{{ device.name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">IP地址</div>
+                        <div class="col-md-8">{{ device.ip_address }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">设备类型</div>
+                        <div class="col-md-8">{{ device.device_type }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">位置</div>
+                        <div class="col-md-8">{{ device.location }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 detail-label">状态</div>
+                        <div class="col-md-8">
+                            {% if device.status == 'up' %}
+                            <span class="text-success">在线</span>
+                            {% else %}
+                            <span class="text-danger">离线</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('device.view', id=device.id) }}" class="btn btn-info">
+                            <i class="fas fa-eye"></i> 查看设备详情
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 操作卡片 -->
+            {% if not alert.is_handled %}
+            <div class="card shadow detail-card action-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger"><i class="fas fa-tools"></i> 处理操作</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">该告警尚未处理，您可以点击下方按钮标记为已处理</p>
+                    <form action="{{ url_for('alert.handle', id=alert.id) }}" method="POST">
+                        <button type="submit" class="btn btn-danger btn-block">
+                            <i class="fas fa-check"></i> 标记为已处理
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not alert.is_recovered %}
+            <div class="card shadow detail-card action-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-check-circle"></i> 恢复操作</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">该告警尚未恢复，您可以点击下方按钮标记为已恢复</p>
+                    <form action="{{ url_for('alert.recover', id=alert.id) }}" method="POST">
+                        <button type="submit" class="btn btn-success btn-block">
+                            <i class="fas fa-check-double"></i> 标记为已恢复
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 相关告警 -->
+            <div class="card shadow detail-card mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-link"></i> 相关告警</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% set related_found = false %}
+                        {% for related_alert in alerts %}
+                            {% if related_alert.device_id == alert.device_id and related_alert.id != alert.id %}
+                                {% set related_found = true %}
+                                <a href="{{ url_for('alert.view', id=related_alert.id) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">
+                                            {% if related_alert.severity == 'critical' %}
+                                            <i class="fas fa-exclamation-circle text-danger"></i>
+                                            {% elif related_alert.severity == 'warning' %}
+                                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                                            {% else %}
+                                            <i class="fas fa-info-circle text-info"></i>
+                                            {% endif %}
+                                            {{ related_alert.alert_type }}
+                                        </h6>
+                                        <small>{{ related_alert.created_at.strftime('%m-%d %H:%M') }}</small>
+                                    </div>
+                                    <p class="mb-1 text-truncate">{{ related_alert.description }}</p>
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not related_found %}
+                        <p class="text-center text-muted py-3">没有相关告警</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
